@@ -1,0 +1,37 @@
+# Exemplo de arquivo terraform.tfvars
+# Copie este arquivo para terraform.tfvars e ajuste os valores
+
+project_name = "my-project"
+environment  = "development"
+location     = "eastus"
+
+vnet_address_space = ["10.0.0.0/16"]
+
+subnets = {
+  subnet-web = {
+    address_prefixes = ["10.0.1.0/24"]
+    security_rules = [
+      {
+        name                       = "AllowHTTP"
+        priority                   = 100
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+      }
+    ]
+  }
+  subnet-app = {
+    address_prefixes = ["10.0.2.0/24"]
+    security_rules   = []
+  }
+}
+
+tags = {
+  CostCenter = "IT-Infrastructure"
+  Owner      = "devops-team@company.com"
+  Purpose    = "Web Application"
+}
