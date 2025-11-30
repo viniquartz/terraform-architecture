@@ -8,9 +8,7 @@ Projeto de modernização de infraestrutura Azure usando Terraform com as melhor
 terraform-azure-project/
 ├── README.md                          # Este arquivo
 ├── docs/                              # Documentação
-│   ├── architecture-plan.md           # Plano de arquitetura completo
-│   ├── deployment-guide.md            # Guia de deployment
-│   ├── module-development-guide.md    # Guia para desenvolver módulos
+│   ├── architecture-plan.md           # Plano de arquitetura completo (v3.0)
 │   ├── runbook.md                     # Runbook operacional
 │   └── troubleshooting.md             # Guia de troubleshooting
 ├── pipelines/                         # Jenkins Shared Library
@@ -23,14 +21,17 @@ terraform-azure-project/
 │   └── sendDynatraceEvent.groovy
 ├── scripts/                           # Scripts auxiliares
 │   ├── setup/                         # Scripts de setup inicial
-│   ├── import/                        # Scripts para import de recursos
-│   ├── validation/                    # Scripts de validação
-│   └── utilities/                     # Utilitários gerais
+│   │   ├── configure-azure-backend.sh
+│   │   └── create-service-principals.sh
+│   └── import/                        # Scripts para import de recursos
+│       └── generate-import-commands.sh
 ├── terraform-modules/                 # Monorepo de módulos (exemplo)
 │   └── README.md                      # Estrutura sugerida
 └── examples/                          # Exemplos de uso
-    ├── new-project/                   # Template para novos projetos
-    └── module-usage/                  # Exemplos de uso de módulos
+    └── new-project/                   # Template para novos projetos
+        ├── main.tf
+        ├── variables.tf
+        └── terraform.tfvars.example
 ```
 
 ## 🚀 Quick Start
@@ -62,11 +63,9 @@ Ver documentação completa em [`pipelines/README.md`](pipelines/README.md)
 
 ## 📚 Documentação
 
-- **[Plano de Arquitetura](docs/architecture-plan.md)** - Documento completo com decisões arquiteturais
-- **[Guia de Deployment](docs/deployment-guide.md)** - Como fazer deploy dos recursos
-- **[Desenvolvimento de Módulos](docs/module-development-guide.md)** - Como criar novos módulos
-- **[Runbook Operacional](docs/runbook.md)** - Procedimentos operacionais
-- **[Troubleshooting](docs/troubleshooting.md)** - Resolução de problemas comuns
+- **[Plano de Arquitetura](docs/architecture-plan.md)** - Documento completo com decisões arquiteturais, estrutura de repositórios, pipelines, e timeline detalhado (v3.0)
+- **[Runbook Operacional](docs/runbook.md)** - Procedimentos operacionais, emergências, e tarefas rotineiras
+- **[Troubleshooting](docs/troubleshooting.md)** - Resolução de problemas comuns e debugging avançado
 
 ## 🏗️ Arquitetura
 
@@ -138,13 +137,8 @@ Os módulos Terraform devem ser mantidos em repositório separado (monorepo):
 ./scripts/setup/configure-azure-backend.sh
 ./scripts/setup/create-service-principals.sh
 
-# Import
+# Import de recursos legados
 ./scripts/import/generate-import-commands.sh <resource-group>
-./scripts/import/import-resources.sh <resource-group>
-
-# Validation
-./scripts/validation/validate-all-modules.sh
-./scripts/validation/check-naming-convention.sh
 ```
 
 ## 📊 Monitoramento
@@ -221,5 +215,12 @@ Proprietary - Uso interno apenas
 ---
 
 **Última atualização:** 30 de Novembro de 2025  
-**Versão do Documento:** 2.0  
+**Versão do Documento:** 3.0  
 **Mantido por:** DevOps Team
+
+## 🔄 Histórico de Versões
+
+| Versão | Data | Mudanças |
+|--------|------|----------|
+| 3.0 | 2025-11-30 | Estrutura final com pipelines centralizadas, integração Teams/Dynatrace, e abordagem faseada |
+| 2.0 | 2025-11-27 | Versão inicial da arquitetura |
