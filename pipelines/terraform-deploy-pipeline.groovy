@@ -42,7 +42,7 @@ def call(Map config = [:]) {
             stage('Initialize') {
                 steps {
                     script {
-                        echo "🚀 Starting deployment for ${PROJECT_DISPLAY_NAME}"
+                        echo "[START] Starting deployment for ${PROJECT_DISPLAY_NAME}"
                         
                         // Send Teams notification
                         sendTeamsNotification(
@@ -71,7 +71,7 @@ def call(Map config = [:]) {
             stage('Checkout') {
                 steps {
                     script {
-                        echo "📦 Checking out ${params.PROJECT_NAME} from branch ${params.GIT_BRANCH}"
+                        echo "[CHECKOUT] Checking out ${params.PROJECT_NAME} from branch ${params.GIT_BRANCH}"
                         
                         checkout([
                             $class: 'GitSCM',
@@ -89,7 +89,7 @@ def call(Map config = [:]) {
                 steps {
                     dir("${WORKSPACE_PATH}") {
                         sh """
-                            echo "✓ Validating Terraform code for ${PROJECT_DISPLAY_NAME}"
+                            echo "[OK] Validating Terraform code for ${PROJECT_DISPLAY_NAME}"
                             terraform fmt -check -recursive
                             terraform init -backend=false
                             terraform validate
@@ -126,7 +126,7 @@ def call(Map config = [:]) {
                 steps {
                     dir("${WORKSPACE_PATH}") {
                         sh """
-                            echo "🔧 Initializing Terraform for ${PROJECT_DISPLAY_NAME}"
+                            echo "[INIT] Initializing Terraform for ${PROJECT_DISPLAY_NAME}"
                             terraform init -upgrade
                         """
                     }
@@ -148,11 +148,11 @@ def call(Map config = [:]) {
                             )
                             
                             if (planExitCode == 2) {
-                                echo "⚠️ Changes detected for ${PROJECT_DISPLAY_NAME}"
+                                echo "[WARNING] Changes detected for ${PROJECT_DISPLAY_NAME}"
                             } else if (planExitCode == 0) {
-                                echo "✓ No changes required for ${PROJECT_DISPLAY_NAME}"
+                                echo "[OK] No changes required for ${PROJECT_DISPLAY_NAME}"
                             } else {
-                                error "❌ Terraform plan failed for ${PROJECT_DISPLAY_NAME}"
+                                error "[ERROR] Terraform plan failed for ${PROJECT_DISPLAY_NAME}"
                             }
                             
                             sh "terraform show -json tfplan-${PROJECT_DISPLAY_NAME} > tfplan-${PROJECT_DISPLAY_NAME}.json"
@@ -235,7 +235,7 @@ def call(Map config = [:]) {
                 steps {
                     dir("${WORKSPACE_PATH}") {
                         sh """
-                            echo "🚀 Applying changes for ${PROJECT_DISPLAY_NAME}"
+                            echo "[START] Applying changes for ${PROJECT_DISPLAY_NAME}"
                             terraform apply tfplan-${PROJECT_DISPLAY_NAME}
                         """
                     }
@@ -249,7 +249,7 @@ def call(Map config = [:]) {
                 steps {
                     dir("${WORKSPACE_PATH}") {
                         sh """
-                            echo "🗑️ Destroying resources for ${PROJECT_DISPLAY_NAME}"
+                            echo "[DESTROY] Destroying resources for ${PROJECT_DISPLAY_NAME}"
                             terraform destroy -var-file=terraform.tfvars -auto-approve
                         """
                     }
@@ -262,7 +262,7 @@ def call(Map config = [:]) {
                 }
                 steps {
                     sh """
-                        echo "🧪 Running post-deployment tests for ${PROJECT_DISPLAY_NAME}"
+                        echo "[TEST] Running post-deployment tests for ${PROJECT_DISPLAY_NAME}"
                         ./scripts/post-deployment-tests.sh ${params.PROJECT_NAME} ${params.ENVIRONMENT}
                     """
                 }

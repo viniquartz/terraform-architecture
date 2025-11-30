@@ -13,12 +13,12 @@ def call(Map config = [:]) {
     ][config.status] ?: '6C757D'
     
     def icon = [
-        'STARTED': '🚀',
-        'SUCCESS': '✅',
-        'FAILURE': '❌',
+        'STARTED': '[START]',
+        'SUCCESS': '[SUCCESS]',
+        'FAILURE': '[ERROR]',
         'PENDING_APPROVAL': '⏳',
-        'DRIFT_DETECTED': '⚠️'
-    ][config.status] ?: '📌'
+        'DRIFT_DETECTED': '[WARNING]'
+    ][config.status] ?: '[INFO]'
     
     def message = [
         '@type': 'MessageCard',
@@ -58,7 +58,7 @@ def call(Map config = [:]) {
     
     if (config.errorLog) {
         message.sections.add([
-            'activityTitle': '❌ Error Details',
+            'activityTitle': '[ERROR] Error Details',
             'text': "```\n${config.errorLog}\n```",
             'markdown': true
         ])

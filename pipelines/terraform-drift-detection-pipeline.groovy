@@ -21,7 +21,7 @@ def call(Map config = [:]) {
                         
                         projects.each { project ->
                             environments.each { env ->
-                                echo "🔍 Checking drift for ${project}-${env}"
+                                echo "[CHECK] Checking drift for ${project}-${env}"
                                 
                                 try {
                                     checkout([
@@ -42,7 +42,7 @@ def call(Map config = [:]) {
                                         
                                         if (exitCode == 2) {
                                             driftDetected.add("${project}-${env}")
-                                            echo "⚠️ DRIFT DETECTED: ${project}-${env}"
+                                            echo "[WARNING] DRIFT DETECTED: ${project}-${env}"
                                             
                                             sendTeamsNotification(
                                                 status: 'DRIFT_DETECTED',
@@ -63,15 +63,15 @@ def call(Map config = [:]) {
                                         }
                                     }
                                 } catch (Exception e) {
-                                    echo "❌ Error checking drift for ${project}-${env}: ${e.message}"
+                                    echo "[ERROR] Error checking drift for ${project}-${env}: ${e.message}"
                                 }
                             }
                         }
                         
                         if (driftDetected.size() > 0) {
-                            echo "📊 Drift detected in: ${driftDetected.join(', ')}"
+                            echo "[METRICS] Drift detected in: ${driftDetected.join(', ')}"
                         } else {
-                            echo "✅ No drift detected in any project"
+                            echo "[SUCCESS] No drift detected in any project"
                         }
                     }
                 }

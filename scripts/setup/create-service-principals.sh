@@ -15,7 +15,7 @@ log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 
 # Verificações
 if ! command -v az &> /dev/null; then
-    log_error "Azure CLI não instalado"
+    log_error "Azure CLI nao instalado"
     exit 1
 fi
 
@@ -37,10 +37,10 @@ for ENV in "${ENVIRONMENTS[@]}"; do
     
     log_info "Criando Service Principal: $SP_NAME"
     
-    # Verificar se já existe
+    # Verificar se ja existe
     if az ad sp list --display-name "$SP_NAME" --query '[0].appId' -o tsv &> /dev/null; then
         APP_ID=$(az ad sp list --display-name "$SP_NAME" --query '[0].appId' -o tsv)
-        log_warning "Service Principal já existe (AppId: $APP_ID)"
+        log_warning "Service Principal ja existe (AppId: $APP_ID)"
         
         # Resetar credenciais
         log_info "Resetando credenciais..."
@@ -88,12 +88,12 @@ EOF
         az role assignment create \
             --assignee "$APP_ID" \
             --role "Key Vault Administrator" \
-            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode já existir"
+            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode ja existir"
         
         az role assignment create \
             --assignee "$APP_ID" \
             --role "Storage Account Contributor" \
-            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode já existir"
+            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode ja existir"
     fi
     
     log_info "✅ $SP_NAME configurado\n"

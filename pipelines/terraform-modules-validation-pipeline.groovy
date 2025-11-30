@@ -38,7 +38,7 @@ def call(Map config = [:]) {
                         ).trim().split('\n')
                         
                         env.CHANGED_MODULES = changedModules.join(',')
-                        echo "📦 Changed modules: ${env.CHANGED_MODULES}"
+                        echo "[CHECKOUT] Changed modules: ${env.CHANGED_MODULES}"
                     }
                 }
             }
@@ -54,7 +54,7 @@ def call(Map config = [:]) {
                         def validationResults = [:]
                         
                         modules.each { module ->
-                            echo "🔍 Validating module: ${module}"
+                            echo "[CHECK] Validating module: ${module}"
                             
                             try {
                                 dir(module) {
@@ -73,15 +73,15 @@ def call(Map config = [:]) {
                                     }
                                     
                                     if (!fileExists('examples')) {
-                                        echo "⚠️ Warning: No examples directory in ${module}"
+                                        echo "[WARNING] Warning: No examples directory in ${module}"
                                     }
                                     
                                     validationResults[module] = 'PASSED'
-                                    echo "✅ ${module} validation passed"
+                                    echo "[SUCCESS] ${module} validation passed"
                                 }
                             } catch (Exception e) {
                                 validationResults[module] = 'FAILED'
-                                echo "❌ ${module} validation failed: ${e.message}"
+                                echo "[ERROR] ${module} validation failed: ${e.message}"
                                 currentBuild.result = 'FAILURE'
                             }
                         }
@@ -89,7 +89,7 @@ def call(Map config = [:]) {
                         // Summary
                         def passed = validationResults.count { it.value == 'PASSED' }
                         def failed = validationResults.count { it.value == 'FAILED' }
-                        echo "📊 Validation Summary: ${passed} passed, ${failed} failed"
+                        echo "[METRICS] Validation Summary: ${passed} passed, ${failed} failed"
                     }
                 }
             }
@@ -129,7 +129,7 @@ def call(Map config = [:]) {
                         
                         changedModules.each { module ->
                             if (fileExists("${module}/tests")) {
-                                echo "🧪 Running tests for ${module}"
+                                echo "[TEST] Running tests for ${module}"
                                 dir("${module}/tests") {
                                     // Run Terratest if exists
                                     if (fileExists('go.mod')) {
@@ -191,10 +191,10 @@ def call(Map config = [:]) {
                         ).trim()
                         
                         if (tags) {
-                            echo "📌 Existing version tags:"
+                            echo "[INFO] Existing version tags:"
                             echo tags
                         } else {
-                            echo "⚠️ No version tags found. Consider tagging releases."
+                            echo "[WARNING] No version tags found. Consider tagging releases."
                         }
                     }
                 }
@@ -206,13 +206,13 @@ def call(Map config = [:]) {
                 script {
                     updateGitlabCommitStatus name: 'modules-validation', state: 'success'
                     addGitLabMRComment comment: """
-                        ✅ **Module Validation Passed**
+                        [SUCCESS] **Module Validation Passed**
                         
                         All modules validated successfully:
-                        - Format check: ✅
-                        - Terraform validate: ✅
-                        - Security scan: ✅
-                        - Tests: ✅
+                        - Format check: [SUCCESS]
+                        - Terraform validate: [SUCCESS]
+                        - Security scan: [SUCCESS]
+                        - Tests: [SUCCESS]
                         
                         [View detailed results](${env.BUILD_URL})
                     """
@@ -241,7 +241,7 @@ def call(Map config = [:]) {
                 script {
                     updateGitlabCommitStatus name: 'modules-validation', state: 'failed'
                     addGitLabMRComment comment: """
-                        ❌ **Module Validation Failed**
+                        [ERROR] **Module Validation Failed**
                         
                         Some modules failed validation. Please check:
                         - Terraform formatting

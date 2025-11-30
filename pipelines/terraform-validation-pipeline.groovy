@@ -51,11 +51,11 @@ def call(Map config = [:]) {
         post {
             success {
                 updateGitlabCommitStatus name: 'terraform-validation', state: 'success'
-                addGitLabMRComment comment: "✅ Terraform validation passed for all environments"
+                addGitLabMRComment comment: "[SUCCESS] Terraform validation passed for all environments"
             }
             failure {
                 updateGitlabCommitStatus name: 'terraform-validation', state: 'failed'
-                addGitLabMRComment comment: "❌ Terraform validation failed. Check build logs."
+                addGitLabMRComment comment: "[ERROR] Terraform validation failed. Check build logs."
             }
         }
     }

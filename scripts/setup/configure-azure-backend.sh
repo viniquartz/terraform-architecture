@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Função para logging
+# Funcao para logging
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
 }
@@ -22,19 +22,19 @@ log_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-# Verificar se Azure CLI está instalado
+# Verificar se Azure CLI esta instalado
 if ! command -v az &> /dev/null; then
-    log_error "Azure CLI não está instalado. Instale: https://docs.microsoft.com/cli/azure/install-azure-cli"
+    log_error "Azure CLI nao esta instalado. Instale: https://docs.microsoft.com/cli/azure/install-azure-cli"
     exit 1
 fi
 
-# Verificar se está logado
+# Verificar se esta logado
 if ! az account show &> /dev/null; then
-    log_error "Você não está logado no Azure. Execute: az login"
+    log_error "Voce nao esta logado no Azure. Execute: az login"
     exit 1
 fi
 
-# Parâmetros
+# Parametros
 RESOURCE_GROUP_NAME="${1:-rg-terraform-state-prod-eastus}"
 STORAGE_ACCOUNT_NAME="${2:-stterraformstate$(date +%s)}"
 CONTAINER_NAME="${3:-tfstate}"
@@ -49,7 +49,7 @@ log_info "Location: $LOCATION"
 # Criar Resource Group
 log_info "Criando Resource Group..."
 if az group show --name "$RESOURCE_GROUP_NAME" &> /dev/null; then
-    log_warning "Resource Group já existe, pulando criação"
+    log_warning "Resource Group ja existe, pulando criacao"
 else
     az group create \
         --name "$RESOURCE_GROUP_NAME" \
@@ -61,7 +61,7 @@ fi
 # Criar Storage Account
 log_info "Criando Storage Account..."
 if az storage account show --name "$STORAGE_ACCOUNT_NAME" --resource-group "$RESOURCE_GROUP_NAME" &> /dev/null; then
-    log_warning "Storage Account já existe, pulando criação"
+    log_warning "Storage Account ja existe, pulando criacao"
 else
     az storage account create \
         --name "$STORAGE_ACCOUNT_NAME" \
@@ -102,7 +102,7 @@ if az storage container show \
     --name "$CONTAINER_NAME" \
     --account-name "$STORAGE_ACCOUNT_NAME" \
     --account-key "$ACCOUNT_KEY" &> /dev/null; then
-    log_warning "Container já existe, pulando criação"
+    log_warning "Container ja existe, pulando criacao"
 else
     az storage container create \
         --name "$CONTAINER_NAME" \
@@ -117,7 +117,7 @@ log_info "Aplicando RBAC..."
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME"
 
-# Buscar Service Principal (assumindo que já existe)
+# Buscar Service Principal (assumindo que ja existe)
 SP_NAME="${SP_NAME:-terraform-sp}"
 SP_OBJECT_ID=$(az ad sp list --display-name "$SP_NAME" --query '[0].id' -o tsv)
 
@@ -125,10 +125,10 @@ if [ -n "$SP_OBJECT_ID" ]; then
     az role assignment create \
         --assignee "$SP_OBJECT_ID" \
         --role "Storage Blob Data Contributor" \
-        --scope "$SCOPE" || log_warning "Role assignment pode já existir"
+        --scope "$SCOPE" || log_warning "Role assignment pode ja existir"
     log_info "RBAC configurado para Service Principal"
 else
-    log_warning "Service Principal '$SP_NAME' não encontrado, pulando RBAC"
+    log_warning "Service Principal '$SP_NAME' nao encontrado, pulando RBAC"
 fi
 
 # Gerar configuração do backend

@@ -14,7 +14,7 @@ log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 
 # Verificações
 if ! command -v az &> /dev/null; then
-    log_error "Azure CLI não instalado"
+    log_error "Azure CLI nao instalado"
     exit 1
 fi
 
@@ -32,7 +32,7 @@ fi
 
 # Verificar se RG existe
 if ! az group show --name "$RESOURCE_GROUP" &> /dev/null; then
-    log_error "Resource Group '$RESOURCE_GROUP' não encontrado"
+    log_error "Resource Group '$RESOURCE_GROUP' nao encontrado"
     exit 1
 fi
 
