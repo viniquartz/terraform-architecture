@@ -1,6 +1,190 @@
 # Terraform Azure Modules
 
-Repositório de módulos reutilizáveis do Terraform para Azure (Monorepo).
+Collection of reusable Terraform modules for Azure infrastructure.
+
+## Available Modules
+
+### Networking
+- **[vnet](vnet/)** - Azure Virtual Network
+- **[subnet](subnet/)** - Azure Subnet with service endpoints support
+- **[nsg](nsg/)** - Network Security Group
+- **[nsg-rules](nsg-rules/)** - Custom NSG security rules (multi-rule support)
+- **[ssh](ssh/)** - SSH security rule (single rule)
+
+### Compute
+- **[vm-linux](vm-linux/)** - Linux Virtual Machine with SSH authentication
+
+## Module Standards
+
+All modules follow these standards:
+
+- ✅ Terraform >= 1.5.0 required
+- ✅ Azure Provider ~> 3.0 required
+- ✅ Input validation where applicable
+- ✅ Comprehensive descriptions on all variables
+- ✅ Security best practices enforced
+- ✅ Example usage included
+- ✅ README documentation
+
+## Quick Start
+
+```hcl
+# Example: Create a complete network infrastructure
+module "vnet" {
+  source = "./terraform-modules/vnet"
+
+  vnet_name           = "my-vnet"
+  location            = "West Europe"
+  resource_group_name = "my-rg"
+  address_space       = ["10.0.0.0/16"]
+
+  tags = {
+    Environment = "Production"
+    ManagedBy   = "Terraform"
+  }
+}
+
+module "subnet" {
+  source = "./terraform-modules/subnet"
+
+  subnet_name          = "my-subnet"
+  resource_group_name  = "my-rg"
+  virtual_network_name = module.vnet.vnet_name
+  address_prefixes     = ["10.0.1.0/24"]
+  service_endpoints    = ["Microsoft.Storage"]
+}
+
+module "nsg" {
+  source = "./terraform-modules/nsg"
+
+  nsg_name            = "my-nsg"
+  location            = "West Europe"
+  resource_group_name = "my-rg"
+  subnet_id           = module.subnet.subnet_id
+
+  tags = {
+    Environment = "Production"
+    ManagedBy   = "Terraform"
+  }
+}
+```
+
+## Module Details
+
+### VNET
+Creates an Azure Virtual Network with configurable address space.
+
+**Key Features:**
+- CIDR validation
+- Required Environment tag
+- Multiple address spaces support
+
+### Subnet
+Creates a subnet within a VNET with optional service endpoints.
+
+**Key Features:**
+- CIDR validation
+- Service endpoints (Storage, SQL, KeyVault, etc.)
+- NSG association via nsg module
+
+### NSG
+Creates a Network Security Group with optional subnet association.
+
+**Key Features:**
+- Automatic subnet association
+- Tagging support
+- Use with nsg-rules or ssh modules
+
+### NSG Rules
+Add multiple custom security rules to an existing NSG.
+
+**Key Features:**
+- Multiple rules in one module call
+- Full validation (direction, access, protocol, priority)
+- For-each loop for efficiency
+
+**When to use:**
+- Multiple custom rules needed
+- HTTP/HTTPS/custom ports
+- Complex security requirements
+
+### SSH
+Add a single SSH rule to an existing NSG.
+
+**Key Features:**
+- Simple SSH access (port 22)
+- Configurable source IP/CIDR
+- Priority control
+
+**When to use:**
+- Only SSH access needed
+- Simple use case
+- Quick setup
+
+### VM Linux
+Creates a Linux VM with network interface and optional public IP.
+
+**Key Features:**
+- SSH-only authentication (password disabled)
+- Ubuntu 22.04 LTS default
+- Most affordable size default (Standard_B1s)
+- Flexible public IP configuration
+- SSH command output
+
+## Validation Rules
+
+Modules include input validation for:
+
+- **CIDR blocks** - All network addresses validated
+- **Resource names** - Character limits enforced
+- **VM sizes** - Must start with 'Standard_'
+- **Tags** - Environment key required when tags provided
+- **NSG rules** - Direction, access, protocol, priority ranges
+- **Service endpoints** - Must start with 'Microsoft.'
+
+## Security Best Practices
+
+- VM password authentication disabled by default
+- SSH key authentication required
+- NSG rules validated for proper configuration
+- Tags enforced for resource tracking
+- Provider versions locked
+
+## Contributing
+
+When creating new modules:
+
+1. Follow the standard structure (main.tf, variables.tf, outputs.tf, versions.tf)
+2. Add comprehensive variable descriptions
+3. Include validation where applicable
+4. Create README.md with examples
+5. Add at least one basic example in examples/basic/
+6. Test in dev environment first
+
+## Documentation
+
+Each module has its own README with:
+- Usage examples
+- Requirements table
+- Inputs table
+- Outputs table
+- Validation rules
+- Notes and best practices
+
+## Version Requirements
+
+```hcl
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
+}
+```
 
 ## 📁 Estrutura Sugerida
 
