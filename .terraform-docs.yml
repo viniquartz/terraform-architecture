@@ -1,8 +1,17 @@
 formatter: markdown table
 
+version: ""
+
 header-from: main.tf
 
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: .
+
 sections:
+  hide: []
   show:
     - header
     - requirements
@@ -13,33 +22,54 @@ sections:
 
 content: |-
   {{ .Header }}
-
-  ## Usage
-
-  ```hcl
-  {{ include "examples/basic/main.tf" }}
-  ```
-
+  
+  ## Requirements
+  
   {{ .Requirements }}
-
+  
+  ## Providers
+  
   {{ .Providers }}
-
-  {{ .Inputs }}
-
-  {{ .Outputs }}
-
+  
+  ## Resources
+  
   {{ .Resources }}
+  
+  ## Inputs
+  
+  {{ .Inputs }}
+  
+  ## Outputs
+  
+  {{ .Outputs }}
 
 output:
   file: README.md
-  mode: replace
+  mode: inject
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+output-values:
+  enabled: false
+  from: ""
 
 sort:
   enabled: true
   by: required
 
 settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
   indent: 2
+  lockfile: true
+  read-comments: true
   required: true
   sensitive: true
   type: true
