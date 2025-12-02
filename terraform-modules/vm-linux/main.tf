@@ -3,8 +3,8 @@ resource "azurerm_public_ip" "this" {
   name                = "${var.vm_name}-pip"
   location            = var.location
   resource_group_name = var.resource_group_name
-  allocation_method   = "Static"
-  sku                 = "Standard"
+  allocation_method   = var.public_ip_allocation_method
+  sku                 = var.public_ip_sku
 
   tags = var.tags
 }
@@ -25,11 +25,12 @@ resource "azurerm_network_interface" "this" {
 }
 
 resource "azurerm_linux_virtual_machine" "this" {
-  name                = var.vm_name
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  size                = var.vm_size
-  admin_username      = var.admin_username
+  name                            = var.vm_name
+  location                        = var.location
+  resource_group_name             = var.resource_group_name
+  size                            = var.vm_size
+  admin_username                  = var.admin_username
+  disable_password_authentication = true
 
   network_interface_ids = [
     azurerm_network_interface.this.id,

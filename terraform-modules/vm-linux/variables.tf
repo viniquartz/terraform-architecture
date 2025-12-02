@@ -16,7 +16,12 @@ variable "resource_group_name" {
 variable "vm_size" {
   description = "Size of the virtual machine"
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_B1s"
+
+  validation {
+    condition     = can(regex("^Standard_", var.vm_size))
+    error_message = "VM size must start with 'Standard_'"
+  }
 }
 
 variable "admin_username" {
@@ -39,6 +44,28 @@ variable "enable_public_ip" {
   description = "Enable public IP for the VM"
   type        = bool
   default     = false
+}
+
+variable "public_ip_allocation_method" {
+  description = "Public IP allocation method (Static or Dynamic)"
+  type        = string
+  default     = "Static"
+
+  validation {
+    condition     = contains(["Static", "Dynamic"], var.public_ip_allocation_method)
+    error_message = "Must be either 'Static' or 'Dynamic'"
+  }
+}
+
+variable "public_ip_sku" {
+  description = "Public IP SKU (Basic or Standard)"
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = contains(["Basic", "Standard"], var.public_ip_sku)
+    error_message = "Must be either 'Basic' or 'Standard'"
+  }
 }
 
 variable "os_disk_type" {
