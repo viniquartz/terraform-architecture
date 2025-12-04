@@ -45,8 +45,6 @@ RUN wget -q https://github.com/terraform-docs/terraform-docs/releases/download/v
 # ------------------------------------------------------------------------------
 FROM ubuntu:22.04
 
-LABEL maintainer="DevOps Team"
-LABEL description="Jenkins agent for Terraform Azure deployments"
 LABEL version="1.0"
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -72,9 +70,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# Install Azure CLI (smallest method)
+# Install Azure CLI
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash \
-    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy binaries from builder stage
 COPY --from=builder /tmp/terraform /usr/local/bin/terraform
 COPY --from=builder /tmp/tfsec /usr/local/bin/tfsec
@@ -127,14 +126,6 @@ RUN echo "=== Verifying installations ===" && \
 # Switch to Jenkins user
 USER ${JENKINS_USER}
 WORKDIR /home/${JENKINS_USER}
-
-# Default command
-CMD ["/bin/bash"]
-WORKDIR /home/${JENKINS_USER}
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD terraform version || exit 1
 
 # Default command
 CMD ["/bin/bash"]
