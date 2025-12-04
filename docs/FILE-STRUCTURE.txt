@@ -1,0 +1,83 @@
+.
+├── README.md
+├── docker
+│   ├── Dockerfile
+│   ├── README.md
+│   ├── docker-compose.yml
+│   └── env.example
+├── docs
+│   ├── BACKEND-CONFIG.md
+│   ├── FILE-STRUCTURE.txt
+│   ├── POC-SETUP-GUIDE.md
+│   ├── README.md
+│   ├── REPOSITORY-STRATEGY.md
+│   └── SUMMARY.md
+├── pipelines
+│   ├── README.md
+│   ├── sendDynatraceEvent.groovy
+│   ├── sendTeamsNotification.groovy
+│   ├── terraform-deploy-pipeline.groovy
+│   ├── terraform-drift-detection-pipeline.groovy
+│   ├── terraform-modules-validation-pipeline.groovy
+│   └── terraform-validation-pipeline.groovy
+├── scripts
+│   ├── import
+│   │   └── generate-import-commands.sh
+│   └── setup
+│       ├── configure-azure-backend.sh
+│       └── create-service-principals.sh
+├── template
+│   ├── README.md
+│   ├── environments
+│   │   ├── non-prd
+│   │   └── prd
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   └── variables.tf
+└── terraform-modules
+    ├── README.md
+    ├── nsg
+    │   ├── README.md
+    │   ├── examples
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── versions.tf
+    ├── nsg-rules
+    │   ├── README.md
+    │   ├── examples
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── versions.tf
+    ├── ssh
+    │   ├── README.md
+    │   ├── examples
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── versions.tf
+    ├── subnet
+    │   ├── README.md
+    │   ├── examples
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── versions.tf
+    ├── vm-linux
+    │   ├── README.md
+    │   ├── examples
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   ├── variables.tf
+    │   └── versions.tf
+    └── vnet
+        ├── README.md
+        ├── examples
+        ├── main.tf
+        ├── outputs.tf
+        ├── variables.tf
+        └── versions.tf
+
+24 directories, 57 files
