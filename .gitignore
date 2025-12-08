@@ -27,6 +27,9 @@ terraform.rc
 .credentials/
 *.json
 !examples/**/*.json
+.env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/

@@ -55,15 +55,13 @@ terraform apply
 ```
 terraform-azure-project/
 ├── docs/                          # 📖 Documentation
-│   ├── POC-SETUP-GUIDE.md        # Complete setup guide
-│   ├── REPOSITORY-STRATEGY.md     # Git strategy
-│   ├── BACKEND-CONFIG.md          # Backend configuration
-│   └── architecture-plan.md       # Architecture docs
+│   ├── SETUP-TRACKING.md         # 🚧 Complete setup guide (WIP)
+│   ├── architecture-plan.md       # Architecture overview
+│   ├── troubleshooting.md         # Common issues
+│   └── runbook.md                 # Operational procedures
 │
 ├── docker/                        # 🐳 Docker for Jenkins Agent
-│   ├── Dockerfile                 # Jenkins agent image
-│   ├── docker-compose.yml         # Local testing
-│   ├── env.example                # Environment variables template
+│   ├── Dockerfile                 # Multi-stage optimized image
 │   └── README.md                  # Docker usage guide
 │
 ├── pipelines/                     # 🔄 Jenkins Pipelines
@@ -80,14 +78,11 @@ terraform-azure-project/
 │   └── import/
 │       └── generate-import-commands.sh
 │
-├── template/                      # 📋 Infrastructure Template
-│   ├── main.tf                    # Main configuration
-│   ├── variables.tf               # Variables declaration
-│   ├── outputs.tf                 # Outputs
-│   ├── providers.tf               # Provider configuration
-│   └── environments/
-│       ├── prd/terraform.tfvars
-│       └── non-prd/terraform.tfvars
+├── examples/                      # 📋 Example Projects
+│   └── new-project/               # Template for new projects
+│       ├── main.tf
+│       ├── variables.tf
+│       └── terraform.tfvars.example
 │
 └── terraform-modules/             # 📦 Modules (Reference Only)
     ├── vnet/                      # Virtual Network

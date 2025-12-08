@@ -9,32 +9,28 @@ cd docker/
 docker build -t jenkins-terraform-agent:latest .
 ```
 
-### Test Locally with Docker Compose
+### Test Locally
 
 ```bash
-# 1. Copy environment template
-cp env.example .env
+# Run container interactively
+docker run -it --rm \
+  -e ARM_CLIENT_ID="your-client-id" \
+  -e ARM_CLIENT_SECRET="your-client-secret" \
+  -e ARM_SUBSCRIPTION_ID="your-subscription-id" \
+  -e ARM_TENANT_ID="your-tenant-id" \
+  jenkins-terraform-agent:latest bash
 
-# 2. Edit .env with your credentials
-vim .env
-
-# 3. Start container
-docker-compose up -d
-
-# 4. Access container
-docker-compose exec jenkins-agent bash
-
-# 5. Test Azure authentication
+# Inside container, test Azure authentication
 az login --service-principal \
   -u $ARM_CLIENT_ID \
   -p $ARM_CLIENT_SECRET \
   --tenant $ARM_TENANT_ID
 
-# 6. Test Terraform
+# Test Terraform
 terraform version
 
-# 7. Stop container
-docker-compose down
+# Exit container
+exit
 ```
 
 ## Verify All Tools

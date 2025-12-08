@@ -154,7 +154,7 @@ SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 # Service Principal para PRD
 echo "=== Criando SP para PRD ==="
 az ad sp create-for-rbac \
-  --name "terraform-azure-prd" \
+  --name "sp-terraform-prd" \
   --role Contributor \
   --scopes /subscriptions/$SUBSCRIPTION_ID \
   --output json > sp-prd.json
@@ -165,7 +165,7 @@ cat sp-prd.json
 # Service Principal para QA
 echo "=== Criando SP para QA ==="
 az ad sp create-for-rbac \
-  --name "terraform-azure-qa" \
+  --name "sp-terraform-qa" \
   --role Contributor \
   --scopes /subscriptions/$SUBSCRIPTION_ID \
   --output json > sp-qa.json
@@ -175,7 +175,7 @@ cat sp-qa.json
 # Service Principal para TST
 echo "=== Criando SP para TST ==="
 az ad sp create-for-rbac \
-  --name "terraform-azure-tst" \
+  --name "sp-terraform-tst" \
   --role Contributor \
   --scopes /subscriptions/$SUBSCRIPTION_ID \
   --output json > sp-tst.json
@@ -213,21 +213,21 @@ TST:
 # Para cada Service Principal, dar permissão de acesso ao Storage
 
 # PRD
-SP_PRD_ID=$(az ad sp list --display-name "terraform-azure-prd" --query [0].id -o tsv)
+SP_PRD_ID=$(az ad sp list --display-name "sp-terraform-prd" --query [0].id -o tsv)
 az role assignment create \
   --assignee $SP_PRD_ID \
   --role "Storage Blob Data Contributor" \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-prd"
 
 # QA
-SP_QA_ID=$(az ad sp list --display-name "terraform-azure-qa" --query [0].id -o tsv)
+SP_QA_ID=$(az ad sp list --display-name "sp-terraform-qa" --query [0].id -o tsv)
 az role assignment create \
   --assignee $SP_QA_ID \
   --role "Storage Blob Data Contributor" \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-qa"
 
 # TST
-SP_TST_ID=$(az ad sp list --display-name "terraform-azure-tst" --query [0].id -o tsv)
+SP_TST_ID=$(az ad sp list --display-name "sp-terraform-tst" --query [0].id -o tsv)
 az role assignment create \
   --assignee $SP_TST_ID \
   --role "Storage Blob Data Contributor" \
