@@ -8,7 +8,7 @@
 
 ### Fase 1: Infraestrutura Base
 - [ ] 1.1 - Azure Backend configurado
-- [ ] 1.2 - Service Principals criados (PRD, QA, TST)
+- [ ] 1.2 - Service Principals criados (PRD, QLT, TST)
 - [ ] 1.3 - Resource groups organizados
 
 ### Fase 2: Repositórios Git
@@ -39,7 +39,7 @@
       │                     │                     │
   2 Repos            Tools Docker          Remote State
   ├─ docs            ├─ Terraform          ├─ PRD
-  └─ modules         ├─ TFSec              ├─ QA
+  └─ modules         ├─ TFSec              ├─ QLT
                      ├─ Checkov            └─ TST
                      └─ Az CLI
 ```
@@ -58,7 +58,7 @@ Storage Account: terraformstatestorage
 │   ├── digital-cabin/terraform.tfstate
 │   └── projeto-X/terraform.tfstate
 │
-├── terraform-state-qa/
+├── terraform-state-qlt/
 │   ├── power-bi/terraform.tfstate
 │   ├── digital-cabin/terraform.tfstate
 │   └── projeto-X/terraform.tfstate
@@ -70,7 +70,7 @@ Storage Account: terraformstatestorage
 ```
 
 **Decisão de Design**:
-- **1 container por ambiente** (prd, qa, tst)
+- **1 container por ambiente** (prd, qlt, tst)
 - **Keys organizados por projeto** dentro de cada container
 - **Cada projeto tem sua própria arquitetura** (power-bi, digital-cabin, projeto-X, etc)
 - **Isolamento claro** entre ambientes
@@ -129,7 +129,7 @@ az storage account blob-service-properties update \
   --delete-retention-days 14
 
 # 5. Criar Containers
-for ENV in prd qa tst; do
+for ENV in prd qlt tst; do
   az storage container create \
     --name terraform-state-$ENV \
     --account-name $STORAGE_ACCOUNT \
@@ -143,13 +143,13 @@ az storage container list \
   --output table
 ```
 
-**Checkpoint**: Você deve ver 3 containers criados: `terraform-state-prd`, `terraform-state-qa`, `terraform-state-tst`
+**Checkpoint**: Você deve ver 3 containers criados: `terraform-state-prd`, `terraform-state-qlt`, `terraform-state-tst`
 
 ---
 
 ### 1.2 - Criar Service Principals por Ambiente
 
-Cada ambiente (PRD, QA, TST) precisa de seu próprio Service Principal com:
+Cada ambiente (PRD, QLT, TST) precisa de seu próprio Service Principal com:
 
 ```bash
 # PRD
@@ -173,15 +173,15 @@ az ad sp create-for-rbac \
 cat sp-prd.json
 #  SALVAR EM SEGREDO: appId, password, tenant
 
-# Service Principal para QA
-echo "=== Criando SP para QA ==="
+# Service Principal para QLT
+echo "=== Criando SP para QLT ==="
 az ad sp create-for-rbac \
-  --name "sp-terraform-qa" \
+  --name "sp-terraform-qlt" \
   --role Contributor \
   --scopes /subscriptions/$SUBSCRIPTION_ID \
-  --output json > sp-qa.json
+  --output json > sp-qlt.json
 
-cat sp-qa.json
+cat sp-qlt.json
 
 # Service Principal para TST
 echo "=== Criando SP para TST ==="
@@ -205,7 +205,7 @@ PRD:
   tenant_id: _______________
   subscription_id: _______________
 
-QA:
+QLT:
   client_id: _______________
   client_secret: _______________
   tenant_id: _______________
@@ -230,12 +230,12 @@ az role assignment create \
   --role "Storage Blob Data Contributor" \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-prd"
 
-# QA
-SP_QA_ID=$(az ad sp list --display-name "sp-terraform-qa" --query [0].id -o tsv)
+# QLT
+SP_QLT_ID=$(az ad sp list --display-name "sp-terraform-qlt" --query [0].id -o tsv)
 az role assignment create \
-  --assignee $SP_QA_ID \
+  --assignee $SP_QLT_ID \
   --role "Storage Blob Data Contributor" \
-  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-qa"
+  --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-qlt"
 
 # TST
 SP_TST_ID=$(az ad sp list --display-name "sp-terraform-tst" --query [0].id -o tsv)
@@ -249,7 +249,7 @@ az role assignment create \
 
 ---
 
-## 🐳 PARTE 2: Docker Image
+##  PARTE 2: Docker Image
 
 ### 2.1 - Build da Imagem (Multi-stage otimizada)
 
@@ -432,7 +432,7 @@ git push origin v1.0.0
 
 ---
 
-## 🔄 PARTE 4: Jenkins Setup
+##  PARTE 4: Jenkins Setup
 
 ### 4.1 - Configurar Credentials no Jenkins
 
@@ -448,11 +448,11 @@ Criar as seguintes credentials (tipo: Secret text):
 - ID: `azure-sp-prd-subscription-id` → subscription ID
 - ID: `azure-sp-prd-tenant-id` → tenant ID
 
-**QA**:
-- ID: `azure-sp-qa-client-id`
-- ID: `azure-sp-qa-client-secret`
-- ID: `azure-sp-qa-subscription-id`
-- ID: `azure-sp-qa-tenant-id`
+**QLT**:
+- ID: `azure-sp-qlt-client-id`
+- ID: `azure-sp-qlt-client-secret`
+- ID: `azure-sp-qlt-subscription-id`
+- ID: `azure-sp-qlt-tenant-id`
 
 **TST**:
 - ID: `azure-sp-tst-client-id`
@@ -510,7 +510,7 @@ Name: terraform-deploy
 Type: Pipeline
 
 Parameters:
-  - ENVIRONMENT: Choice (prd, qa, tst)
+  - ENVIRONMENT: Choice (prd, qlt, tst)
   - PROJECT_NAME: String
   - ACTION: Choice (plan, apply, destroy)
 
@@ -545,7 +545,7 @@ terraform {
   backend "azurerm" {
     resource_group_name  = "terraform-backend-rg"
     storage_account_name = "terraformstatestorage"
-    container_name       = "terraform-state-prd"  # ou qa, tst
+    container_name       = "terraform-state-prd"  # ou qlt, tst
     key                  = "power-bi/terraform.tfstate"  # nome do projeto
   }
 }
@@ -651,7 +651,7 @@ terraform plan
 ```
 Jenkins > terraform-deploy > Build with Parameters
 
-ENVIRONMENT: qa
+ENVIRONMENT: qlt
 PROJECT_NAME: power-bi  # ou digital-cabin, projeto-X
 ACTION: plan
 
@@ -669,7 +669,7 @@ Verificar:
 
 ---
 
-## 📚 Referências Rápidas
+##  Referências Rápidas
 
 ### Backend Config por Ambiente
 
@@ -677,8 +677,8 @@ Verificar:
 # PRD
 container_name = "terraform-state-prd"
 
-# QA
-container_name = "terraform-state-qa"
+# QLT
+container_name = "terraform-state-qlt"
 
 # TST
 container_name = "terraform-state-tst"
@@ -763,7 +763,7 @@ Antes de considerar completo:
 
 **Azure**:
 - [ ] Storage Account criado
-- [ ] 3 containers criados (prd, qa, tst)
+- [ ] 3 containers criados (prd, qlt, tst)
 - [ ] 3 Service Principals criados
 - [ ] Permissões RBAC configuradas
 - [ ] Versioning habilitado
@@ -795,11 +795,11 @@ Antes de considerar completo:
 
 **Multi-stage**: Implementado - reduz imagem de ~1.2GB para ~800MB.
 
-**Backend**: 1 container por ambiente (prd/qa/tst) com projetos dentro como keys.
+**Backend**: 1 container por ambiente (prd/qlt/tst) com projetos dentro como keys.
 
 **Documentação**: Este documento será convertido em docs finais após conclusão e validação completa do setup.
 
 ---
 
 **Última atualização**: 2025-12-04
-**Status**: 🚧 Em construção
+**Status**:  Em construção

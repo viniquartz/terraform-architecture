@@ -40,7 +40,7 @@ STORAGE_ACCOUNT_NAME="${2:-terraformstatestorage}"
 LOCATION="${3:-westeurope}"
 
 # Containers a serem criados
-CONTAINERS=("terraform-state-prd" "terraform-state-qa" "terraform-state-tst")
+CONTAINERS=("terraform-state-prd" "terraform-state-qlt" "terraform-state-tst")
 
 log_info "Configurando backend do Terraform..."
 log_info "Resource Group: $RESOURCE_GROUP_NAME"
@@ -192,5 +192,5 @@ log_info "3. Execute: terraform init"
 log_info ""
 log_info "Containers criados:"
 log_info "  - terraform-state-prd"
-log_info "  - terraform-state-qa"
+log_info "  - terraform-state-qlt"
 log_info "  - terraform-state-tst"

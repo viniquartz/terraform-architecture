@@ -8,16 +8,15 @@ Complete Terraform framework for Azure with enterprise-grade CI/CD pipelines, se
 
 ### Getting Started
 - **[Setup Guide](docs/SETUP-TRACKING.md)** - Complete step-by-step setup (Azure + Docker + Jenkins)
-- **[Documentation Index](docs/README.md)** - Additional documentation and guides
 
 ### Key Features
-- Multi-stage Docker build for Jenkins agent with all tools
-- Azure Backend with container-per-environment strategy
-- Security scanning (TFSec + Checkov) built into pipelines
-- Automated drift detection and notifications
-- Two-repository strategy (docs + versioned modules)
+-  Multi-stage Docker build for Jenkins agent with all tools
+-  Azure Backend with container-per-environment strategy
+-  Security scanning (TFSec + Checkov) built into pipelines
+-  Automated drift detection and notifications
+-  Two-repository strategy (docs + versioned modules)
 
-## Quick Start
+##  Quick Start
 
 ### 1. Build Docker Image
 
@@ -34,7 +33,7 @@ docker run -it --rm jenkins-terraform-agent:1.0 bash
 
 ```bash
 # Follow complete guide: docs/SETUP-TRACKING.md
-# Creates: Storage Account + 3 containers (prd/qlt/tst) + Service Principals
+# Creates: Storage Account + 3 containers (prd/qa/tst) + Service Principals
 
 # Quick example:
 az storage account create --name terraformstatestorage --sku Standard_LRS
@@ -70,7 +69,7 @@ pipeline {
   agent { label 'terraform-azure-agent' }
   
   parameters {
-    choice(name: 'ENVIRONMENT', choices: ['prd', 'qlt', 'tst'])
+    choice(name: 'ENVIRONMENT', choices: ['prd', 'qa', 'tst'])
     choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'])
     string(name: 'PROJECT_NAME', description: 'power-bi, digital-cabin, etc')
   }
@@ -83,11 +82,13 @@ pipeline {
 
 ```
 terraform-azure-project/
-├── docs/                          # Documentation
-│   ├── SETUP-TRACKING.md         # Complete setup guide (WIP)
-│   └── README.md                 # Documentation index
+├── docs/                          #  Documentation
+│   ├── SETUP-TRACKING.md         #  Complete setup guide (WIP)
+│   ├── architecture-plan.md       # Architecture overview
+│   ├── troubleshooting.md         # Common issues
+│   └── runbook.md                 # Operational procedures
 │
-├── docker/                        # Docker for Jenkins Agent
+├── docker/                        #  Docker for Jenkins Agent
 │   ├── Dockerfile                 # Multi-stage optimized image
 │   └── README.md                  # Docker usage guide
 │
@@ -120,22 +121,22 @@ terraform-azure-project/
     └── nsg-rules/                 # Custom NSG Rules
 ```
 
-## Available Modules (Reference)
+##  Available Modules (Reference)
 
 > **Note**: Modules in this repository are for reference only. For production, use the versioned modules from [terraform-azure-modules](https://gitlab.com/yourgroup/terraform-azure-modules).
 
 | Module | Description | Status |
 |--------|-------------|--------|
-| **vnet** | Azure Virtual Network with CIDR validation | Production-ready |
-| **subnet** | Subnet with service endpoints | Production-ready |
-| **nsg** | Network Security Group | Production-ready |
-| **ssh** | SSH security rule (port 22) | Production-ready |
-| **vm-linux** | Linux VM with SSH authentication | Production-ready |
-| **nsg-rules** | Custom security rules | Production-ready |
+| **vnet** | Azure Virtual Network with CIDR validation |  Production-ready |
+| **subnet** | Subnet with service endpoints |  Production-ready |
+| **nsg** | Network Security Group |  Production-ready |
+| **ssh** | SSH security rule (port 22) |  Production-ready |
+| **vm-linux** | Linux VM with SSH authentication |  Production-ready |
+| **nsg-rules** | Custom security rules |  Production-ready |
 
  See [terraform-modules/README.md](terraform-modules/README.md) for detailed module documentation.
 
-## Docker Agent
+##  Docker Agent
 
 **Multi-stage optimized Jenkins agent** with all Terraform tools:
 
@@ -154,7 +155,7 @@ terraform-azure-project/
 
  See [docker/README.md](docker/README.md) for build and usage instructions.
 
-## CI/CD Pipelines
+##  CI/CD Pipelines
 
 ### Available Pipelines
 
@@ -167,18 +168,18 @@ terraform-azure-project/
 
 ### Features
 
-- **Security Scanning**: TFSec + Checkov integration
-- **Notifications**: Teams + Dynatrace events
-- **State Management**: Azure Backend with locking
-- **Multi-environment**: PRD, QLT, TST isolation
-- **Parameterized**: Project name, environment, action
+-  **Security Scanning**: TFSec + Checkov integration
+-  **Notifications**: Teams + Dynatrace events
+-  **State Management**: Azure Backend with locking
+-  **Multi-environment**: PRD, QA, TST isolation
+-  **Parameterized**: Project name, environment, action
 
  See [pipelines/README.md](pipelines/README.md) for pipeline configuration.
 
-## Setup Guide
+## 🏗️ Setup Guide
 
 ### Phase 1: Infrastructure (You)
-Follow [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for complete setup:
+ Follow [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for complete setup:
 
 1. **Azure Backend** - Storage Account + Containers + Service Principals
 2. **Docker Image** - Build and test Jenkins agent
@@ -199,17 +200,17 @@ Once setup is complete:
 2. Deploy via Jenkins pipelines
 3. Check drift detection reports
 
-## Security Features
+## 🔐 Security Features
 
-- SSH-only authentication for VMs (password disabled)
-- Azure backend with state locking
-- Encryption at rest and in transit
-- TFSec security scanning
-- Checkov compliance checking
-- Input validations (CIDR, tags, etc.)
-- RBAC on Storage Account
+-  SSH-only authentication for VMs (password disabled)
+-  Azure backend with state locking
+-  Encryption at rest and in transit
+-  TFSec security scanning
+-  Checkov compliance checking
+-  Input validations (CIDR, tags, etc.)
+-  RBAC on Storage Account
 
-## State Management Strategy
+## 📊 State Management Strategy
 
 ### Container-per-Environment Structure
 
@@ -219,7 +220,7 @@ Storage Account: terraformstatestorage
 │   ├── power-bi/terraform.tfstate
 │   ├── digital-cabin/terraform.tfstate
 │   └── projeto-X/terraform.tfstate
-├── terraform-state-qlt/
+├── terraform-state-qa/
 │   └── [same projects]
 └── terraform-state-tst/
     └── [same projects]
@@ -235,29 +236,29 @@ Storage Account: terraformstatestorage
 
  See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) Section 1 for setup commands.
 
-## Multi-Environment Support
+## 🌍 Multi-Environment Support
 
 | Environment | Service Principal | Container | Approvals |
-|-------------|------------------|-----------|--------|
-| **PRD** | sp-terraform-prd | terraform-state-prd | Required |
-| **QLT** | sp-terraform-qlt | terraform-state-qlt | Recommended |
-| **TST** | sp-terraform-tst | terraform-state-tst | Optional |
+|-------------|------------------|-----------|-----------|
+| **PRD** | sp-terraform-prd | terraform-state-prd |  Required |
+| **QA** | sp-terraform-qa | terraform-state-qa |  Recommended |
+| **TST** | sp-terraform-tst | terraform-state-tst |  Optional |
 
 **Design Decision**: Simple flat structure (1 container per env) scales to 20+ projects. 
 See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for evolution strategy.
 
-## Prerequisites
+## 🛠️ Prerequisites
 
 ### Your Setup Phase
-- **Azure CLI** - For backend setup
-- **Docker** - To build Jenkins agent image
-- **Azure Subscription** - Contributor access
-- **GitLab Account** - For repositories
+-  **Azure CLI** - For backend setup
+-  **Docker** - To build Jenkins agent image
+-  **Azure Subscription** - Contributor access
+-  **GitLab Account** - For repositories
 
 ### Jenkins Team Phase
-- **Jenkins** - Version 2.400+ with Docker plugin
-- **Docker Host** - For agent execution
-- **Network Access** - To Azure and GitLab
+-  **Jenkins** - Version 2.400+ with Docker plugin
+-  **Docker Host** - For agent execution
+-  **Network Access** - To Azure and GitLab
 
 ##  Repository Strategy
 
@@ -275,12 +276,12 @@ See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for evolution strategy.
 
  See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) Section 3 for repository setup.
 
-## Next Steps
+## 📞 Next Steps
 
 ### Immediate Actions (You)
 - [ ] Build Docker image and test locally
 - [ ] Create Azure Storage Account and containers
-- [ ] Create Service Principals (prd, qlt, tst)
+- [ ] Create Service Principals (prd, qa, tst)
 - [ ] Save credentials securely
 
 ### Hand-off to Jenkins Team
@@ -295,23 +296,23 @@ See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for evolution strategy.
 - [ ] Add cost estimation in pipelines
 - [ ] Create self-service portal for developers
 
-## References
+## 🔗 References
 
 - **Setup Guide**: [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md)
 - **Docker Image**: [docker/README.md](docker/README.md)
 - **Pipelines**: [pipelines/README.md](pipelines/README.md)
 - **Modules**: [terraform-modules/README.md](terraform-modules/README.md)
 
-## Project Status
+## 📄 Project Status
 
-**Current Phase**: Setup in Progress
+**Current Phase**:  Setup in Progress
 
-- Documentation complete
-- Docker image optimized
-- Scripts ready
-- Azure backend setup (your task)
-- Jenkins configuration (DevOps team)
-- First deployment (validation)
+-  Documentation complete
+-  Docker image optimized
+-  Scripts ready
+-  Azure backend setup (your task)
+-  Jenkins configuration (DevOps team)
+-  First deployment (validation)
 
 ---
 

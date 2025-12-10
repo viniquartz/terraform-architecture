@@ -29,9 +29,9 @@ def call(Map config = [:]) {
                             validateEnvironment('prd')
                         }
                     }
-                    stage('QA') {
+                    stage('Quality') {
                         steps {
-                            validateEnvironment('qa')
+                            validateEnvironment('qlt')
                         }
                     }
                     stage('Testing') {

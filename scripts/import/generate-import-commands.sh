@@ -180,7 +180,7 @@ terraform import azurerm_key_vault.kv_\(.name | gsub("-"; "_")) \(.id)
 cat >> "$OUTPUT_FILE" <<'EOF'
 
 echo ""
-echo "✅ Import concluído!"
+echo " Import concluído!"
 echo ""
 echo "Próximos passos:"
 echo "1. Revise e ajuste os recursos em imported-resources-*.tf"
@@ -192,7 +192,7 @@ chmod +x "$OUTPUT_FILE"
 
 log_info ""
 log_info "=========================================="
-log_info "✅ COMANDOS GERADOS COM SUCESSO"
+log_info " COMANDOS GERADOS COM SUCESSO"
 log_info "=========================================="
 log_info ""
 log_info "Arquivos gerados:"

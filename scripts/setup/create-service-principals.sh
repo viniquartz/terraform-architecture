@@ -30,7 +30,7 @@ SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
 log_info "Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 
 # Criar Service Principals por ambiente
-ENVIRONMENTS=("prd" "qa" "tst")
+ENVIRONMENTS=("prd" "qlt" "tst")
 
 for ENV in "${ENVIRONMENTS[@]}"; do
     SP_NAME="sp-terraform-${ENV}"
@@ -106,7 +106,7 @@ cat > ".credentials/jenkins-credentials.txt" <<'EOF'
 # CREDENCIAIS PARA JENKINS
 # Adicione estas credenciais usando o Jenkins Credentials Plugin
 
-Para cada ambiente (prd, qa, tst):
+Para cada ambiente (prd, qlt, tst):
 
 1. Tipo: Username with password
    ID: azure-sp-{environment}
@@ -143,7 +143,7 @@ log_info "=========================================="
 log_info ""
 log_info "Arquivos gerados em .credentials/:"
 log_info "  - prd-sp.json"
-log_info "  - qa-sp.json"
+log_info "  - qlt-sp.json"
 log_info "  - tst-sp.json"
 log_info "  - jenkins-credentials.txt"
 log_info ""

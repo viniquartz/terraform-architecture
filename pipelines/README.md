@@ -132,7 +132,7 @@ terraformDriftDetection()
 terraformModulesValidation()
 ```
 
-## 🔐 Segurança
+## Segurança
 
 ### Permissões de Aprovação
 
@@ -150,7 +150,7 @@ security-team:
   - permissions: ['Job.Build', 'Job.Cancel', 'Job.Read']
 ```
 
-## 📊 Monitoramento
+## Monitoramento
 
 ### Dashboards Dynatrace
 
@@ -194,11 +194,11 @@ Eventos notificados:
 5. Pipeline de validação executa automaticamente
 6. Resultado aparece como status no MR
 
-## 📚 Documentação Adicional
+## Documentação Adicional
 
-- [Documento de Arquitetura Completo](../terraform-azure-architecture-plan.md)
-- [Guia de Desenvolvimento de Módulos](../docs/module-development-guide.md)
-- [Runbook de Troubleshooting](../docs/runbook.md)
+- [Setup Guide Completo](../docs/SETUP-TRACKING.md)
+- [Documentação de Módulos](../terraform-modules/README.md)
+- [Docker README](../docker/README.md)
 
 ---
 

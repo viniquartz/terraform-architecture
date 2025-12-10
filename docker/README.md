@@ -2,7 +2,7 @@
 
 Multi-stage optimized Docker image for Jenkins agents with complete Terraform tooling for Azure.
 
-## 🎯 What's Included
+##  What's Included
 
 | Tool | Version | Purpose |
 |------|---------|---------|
@@ -123,7 +123,7 @@ Docker Agent Template:
 
 Add these credentials in Jenkins (Secret text type):
 
-**Per Environment (prd/qa/tst)**:
+**Per Environment (prd/qlt/tst)**:
 - `azure-sp-{env}-client-id`
 - `azure-sp-{env}-client-secret`
 - `azure-sp-{env}-subscription-id`
@@ -249,7 +249,7 @@ az account show
 az role assignment list --assignee <client-id>
 ```
 
-## 📊 Image Layers
+## Image Layers
 
 The multi-stage build creates two stages:
 
@@ -273,7 +273,7 @@ The multi-stage build creates two stages:
 -  TLS 1.2+ only for Azure CLI
 -  No secrets in layers
 
-## 📚 References
+##  References
 
 - Dockerfile: [Dockerfile](Dockerfile)
 - Setup Guide: [docs/SETUP-TRACKING.md](../docs/SETUP-TRACKING.md)

@@ -186,7 +186,7 @@ terraform {
 }
 ```
 
-## 📁 Estrutura Sugerida
+##  Estrutura Sugerida
 
 ```
 terraform-azure-modules/
@@ -381,7 +381,7 @@ Todos os módulos são escaneados automaticamente:
 - **TFSec**: Análise de segurança estática
 - **Checkov**: Policy-as-code compliance
 
-## 📝 Contribuindo
+##  Contribuindo
 
 1. Crie uma branch: `git checkout -b feature/new-module`
 2. Desenvolva o módulo seguindo o padrão
@@ -390,13 +390,13 @@ Todos os módulos são escaneados automaticamente:
 5. Aguarde aprovação da pipeline de validação
 6. Após merge, crie uma tag de versão
 
-## 🔗 Links Úteis
+## Links Úteis
 
 - [Terraform Registry](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
 - [Azure Naming Convention](https://learn.microsoft.com/azure/cloud-adoption-framework/ready/azure-best-practices/resource-naming)
 - [Terratest Documentation](https://terratest.gruntwork.io/)
 
-## 📞 Suporte
+## Suporte
 
 - Canal Teams: #terraform-modules
 - Email: devops-team@company.com
