@@ -1,53 +1,84 @@
-# Terraform Azure - Documentation and Templates
+# Terraform Azure - Infrastructure as Code Framework
 
-Infrastructure as Code templates, documentation, and CI/CD pipelines for Azure using Terraform.
+Complete Terraform framework for Azure with enterprise-grade CI/CD pipelines, security scanning, and multi-environment support.
 
-> **Note**: This repository contains documentation and reference materials. For production-ready versioned modules, see [terraform-azure-modules](https://gitlab.com/yourgroup/terraform-azure-modules).
+> **🎯 Purpose**: Reference architecture and documentation for building Terraform infrastructure on Azure with Jenkins automation.
 
 ## 📚 Documentation
 
-- **[Setup Guide](docs/SETUP-TRACKING.md)** - 🚧 Complete setup guide (work in progress)
-- **[Architecture Plan](docs/architecture-plan.md)** - Solution architecture overview
+### Getting Started
+- **[Setup Guide](docs/SETUP-TRACKING.md)** - 🚧 Complete step-by-step setup (Azure + Docker + Jenkins)
+- **[Architecture Plan](docs/architecture-plan.md)** - Solution architecture and design decisions
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 - **[Runbook](docs/runbook.md)** - Operational procedures
 
-## 🚀 Quick Start
+### Key Features
+-  Multi-stage Docker build for Jenkins agent with all tools
+-  Azure Backend with container-per-environment strategy
+-  Security scanning (TFSec + Checkov) built into pipelines
+-  Automated drift detection and notifications
+-  Two-repository strategy (docs + versioned modules)
 
-### Option 1: Using Versioned Modules (Recommended for Production)
+##  Quick Start
+
+### 1. Build Docker Image
+
+```bash
+cd docker/
+docker build -t jenkins-terraform-agent:1.0 .
+
+# Test locally
+docker run -it --rm jenkins-terraform-agent:1.0 bash
+# Verify: terraform, az, tfsec, checkov, terraform-docs
+```
+
+### 2. Setup Azure Backend
+
+```bash
+# Follow complete guide: docs/SETUP-TRACKING.md
+# Creates: Storage Account + 3 containers (prd/qa/tst) + Service Principals
+
+# Quick example:
+az storage account create --name terraformstatestorage --sku Standard_LRS
+az storage container create --name terraform-state-prd
+az ad sp create-for-rbac --name "sp-terraform-prd" --role Contributor
+```
+
+### 3. Use Modules (Production)
 
 ```hcl
+# Reference versioned modules from separate repository
 module "vnet" {
   source = "git@gitlab.com:yourgroup/terraform-azure-modules.git//modules/vnet?ref=v1.0.0"
   
-  vnet_name           = "my-vnet"
+  vnet_name           = "power-bi-vnet"
   location            = "West Europe"
-  resource_group_name = "my-rg"
+  resource_group_name = "rg-power-bi-prd"
   address_space       = ["10.0.0.0/16"]
   
   tags = {
     Environment = "Production"
+    Project     = "power-bi"
     ManagedBy   = "Terraform"
   }
 }
 ```
 
-### Option 2: Using Template (For Testing/Development)
+### 4. Deploy with Jenkins
 
-```bash
-# 1. Clone repository
-git clone git@gitlab.com:yourgroup/terraform-azure-project.git
-cd terraform-azure-project/template/
-
-# 2. Copy environment configuration
-cp environments/non-prd/terraform.tfvars terraform.tfvars
-
-# 3. Edit variables
-vim terraform.tfvars
-
-# 4. Initialize and deploy
-terraform init
-terraform plan
-terraform apply
+```groovy
+// Use provided pipelines
+pipeline {
+  agent { label 'terraform-azure-agent' }
+  
+  parameters {
+    choice(name: 'ENVIRONMENT', choices: ['prd', 'qa', 'tst'])
+    choice(name: 'ACTION', choices: ['plan', 'apply', 'destroy'])
+    string(name: 'PROJECT_NAME', description: 'power-bi, digital-cabin, etc')
+  }
+  
+  // See: pipelines/terraform-deploy-pipeline.groovy
+}
 ```
 
 ## 📁 Repository Structure
@@ -84,7 +115,7 @@ terraform-azure-project/
 │       ├── variables.tf
 │       └── terraform.tfvars.example
 │
-└── terraform-modules/             # 📦 Modules (Reference Only)
+└── terraform-modules/             #  Modules (Reference Only)
     ├── vnet/                      # Virtual Network
     ├── subnet/                    # Subnet
     ├── nsg/                       # Network Security Group
@@ -93,186 +124,200 @@ terraform-azure-project/
     └── nsg-rules/                 # Custom NSG Rules
 ```
 
-## 🔧 Available Modules
+##  Available Modules (Reference)
 
-| Module | Description | Documentation |
-|--------|-------------|---------------|
-| **vnet** | Azure Virtual Network with CIDR validation | [README](terraform-modules/vnet/README.md) |
-| **subnet** | Subnet with service endpoints support | [README](terraform-modules/subnet/README.md) |
-| **nsg** | Network Security Group with optional subnet association | [README](terraform-modules/nsg/README.md) |
-| **ssh** | Quick SSH security rule (port 22) | [README](terraform-modules/ssh/README.md) |
-| **vm-linux** | Linux VM with SSH-only authentication | [README](terraform-modules/vm-linux/README.md) |
-| **nsg-rules** | Multiple custom security rules | [README](terraform-modules/nsg-rules/README.md) |
+> **Note**: Modules in this repository are for reference only. For production, use the versioned modules from [terraform-azure-modules](https://gitlab.com/yourgroup/terraform-azure-modules).
+
+| Module | Description | Status |
+|--------|-------------|--------|
+| **vnet** | Azure Virtual Network with CIDR validation |  Production-ready |
+| **subnet** | Subnet with service endpoints |  Production-ready |
+| **nsg** | Network Security Group |  Production-ready |
+| **ssh** | SSH security rule (port 22) |  Production-ready |
+| **vm-linux** | Linux VM with SSH authentication |  Production-ready |
+| **nsg-rules** | Custom security rules |  Production-ready |
+
+📝 See [terraform-modules/README.md](terraform-modules/README.md) for detailed module documentation.
 
 ## 🐳 Docker Agent
 
-Jenkins agent with all required tools pre-installed:
+**Multi-stage optimized Jenkins agent** with all Terraform tools:
 
-- Git
-- Azure CLI
-- Terraform 1.5.7
-- TFSec (security scanner)
-- Checkov (IaC scanner)
-- terraform-docs
-- Python 3 + packages
-- Java 17 (for Jenkins)
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Terraform** | 1.5.7 | Infrastructure provisioning |
+| **TFSec** | 1.28.4 | Security scanning |
+| **Checkov** | Latest | Compliance checking |
+| **terraform-docs** | 0.17.0 | Documentation generation |
+| **Azure CLI** | Latest | Azure authentication |
+| **Git** | Latest | Version control |
+| **Java 17 JRE** | Headless | Jenkins runtime |
+| **Python 3** | + azure libs | Scripting support |
 
-See [docker/README.md](docker/README.md) for build and usage instructions.
+**Image Size**: ~800MB (optimized from ~1.2GB with multi-stage build)
+
+📖 See [docker/README.md](docker/README.md) for build and usage instructions.
 
 ## 🔄 CI/CD Pipelines
 
 ### Available Pipelines
 
-1. **terraform-validation-pipeline.groovy**
-   - Format check (`terraform fmt`)
-   - Validation (`terraform validate`)
-   - Security scan (TFSec + Checkov)
-   - Documentation generation
+| Pipeline | Purpose | Triggers |
+|----------|---------|----------|
+| **terraform-validation** | Code quality & security | PR, Manual |
+| **terraform-deploy** | Plan/Apply/Destroy | Manual (parameterized) |
+| **terraform-drift-detection** | Detect config drift | Scheduled (daily) |
+| **terraform-modules-validation** | Module testing | PR to modules repo |
 
-2. **terraform-deploy-pipeline.groovy**
-   - Terraform init with remote backend
-   - Plan/Apply/Destroy
-   - Teams notifications
-   - Dynatrace events
+### Features
 
-3. **terraform-drift-detection-pipeline.groovy**
-   - Scheduled drift detection
-   - Automated alerts
-   - Drift reports
+-  **Security Scanning**: TFSec + Checkov integration
+-  **Notifications**: Teams + Dynatrace events
+-  **State Management**: Azure Backend with locking
+-  **Multi-environment**: PRD, QA, TST isolation
+-  **Parameterized**: Project name, environment, action
 
-See [pipelines/README.md](pipelines/README.md) for detailed pipeline documentation.
+📖 See [pipelines/README.md](pipelines/README.md) for pipeline configuration.
 
 ## 🏗️ Setup Guide
 
-### For DevOps/Platform Team
+### Phase 1: Infrastructure (You)
+ Follow [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for complete setup:
 
-Follow the complete [POC Setup Guide](docs/POC-SETUP-GUIDE.md) to:
+1. **Azure Backend** - Storage Account + Containers + Service Principals
+2. **Docker Image** - Build and test Jenkins agent
+3. **Git Repositories** - Create terraform-azure-modules repo
 
-1. Configure Azure (Service Principals, Backend, etc.)
-2. Setup GitLab repositories
-3. Configure Jenkins with Docker agent
-4. Deploy first infrastructure
+### Phase 2: Jenkins (DevOps Team)
+📋 Hand off to Jenkins team:
+
+1. Configure Docker Cloud in Jenkins
+2. Add Azure credentials (12+ secrets)
+3. Create pipelines from this repository
+4. Test with pilot project
 
 ### For Developers
+Once setup is complete:
 
-1. Clone terraform-azure-modules repository
-2. Reference modules with specific versions
-3. Deploy using Jenkins pipelines
+1. Reference modules: `?ref=v1.0.0`
+2. Deploy via Jenkins pipelines
+3. Check drift detection reports
 
 ## 🔐 Security Features
 
-- ✅ SSH-only authentication for VMs (password disabled)
-- ✅ Azure backend with state locking
-- ✅ Encryption at rest and in transit
-- ✅ TFSec security scanning
-- ✅ Checkov compliance checking
-- ✅ Input validations (CIDR, tags, etc.)
-- ✅ RBAC on Storage Account
+-  SSH-only authentication for VMs (password disabled)
+-  Azure backend with state locking
+-  Encryption at rest and in transit
+-  TFSec security scanning
+-  Checkov compliance checking
+-  Input validations (CIDR, tags, etc.)
+-  RBAC on Storage Account
 
-## 📊 State Management
+## 📊 State Management Strategy
 
-- **Backend**: Azure Storage Account with blob storage
-- **Locking**: Native blob leases (15s timeout)
+### Container-per-Environment Structure
+
+```
+Storage Account: terraformstatestorage
+├── terraform-state-prd/
+│   ├── power-bi/terraform.tfstate
+│   ├── digital-cabin/terraform.tfstate
+│   └── projeto-X/terraform.tfstate
+├── terraform-state-qa/
+│   └── [same projects]
+└── terraform-state-tst/
+    └── [same projects]
+```
+
+### Features
+
+- **Locking**: Native Azure blob leases (automatic)
 - **Versioning**: Enabled with 14-day soft delete
-- **Encryption**: Microsoft-managed keys
-- **Isolation**: Separate containers per environment
+- **Encryption**: At rest + in transit (TLS 1.2)
+- **RBAC**: SP per environment (least privilege)
+- **Backup**: Soft delete + manual snapshots
 
-See [BACKEND-CONFIG.md](docs/BACKEND-CONFIG.md) for detailed configuration.
+📖 See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) Section 1 for setup commands.
 
 ## 🌍 Multi-Environment Support
 
-```
-Environments:
-├── PRD (Production)
-│   ├── Service Principal: terraform-azure-prd
-│   ├── Backend Container: tfstate-prd
-│   └── Approvals: Required
-│
-└── NON-PRD (Dev/QA)
-    ├── Service Principal: terraform-azure-non-prd
-    ├── Backend Container: tfstate-non-prd
-    └── Approvals: Optional
-```
+| Environment | Service Principal | Container | Approvals |
+|-------------|------------------|-----------|-----------|
+| **PRD** | sp-terraform-prd | terraform-state-prd |  Required |
+| **QA** | sp-terraform-qa | terraform-state-qa |  Recommended |
+| **TST** | sp-terraform-tst | terraform-state-tst |  Optional |
+
+**Design Decision**: Simple flat structure (1 container per env) scales to 20+ projects. 
+See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) for evolution strategy.
 
 ## 🛠️ Prerequisites
 
-- **Azure**: Active subscription with Contributor permissions
-- **Terraform**: Version >= 1.5.0
-- **Git**: For repository access
-- **Jenkins**: Version 2.400+ with Docker plugin
-- **Docker**: For Jenkins agent
+### Your Setup Phase
+-  **Azure CLI** - For backend setup
+-  **Docker** - To build Jenkins agent image
+-  **Azure Subscription** - Contributor access
+-  **GitLab Account** - For repositories
 
-## 📝 Contributing
+### Jenkins Team Phase
+-  **Jenkins** - Version 2.400+ with Docker plugin
+-  **Docker Host** - For agent execution
+-  **Network Access** - To Azure and GitLab
 
-This repository follows documentation-driven development:
+## 📝 Repository Strategy
 
-1. Update documentation first
-2. Create feature branch
-3. Commit with conventional commits
-4. Create Merge Request
-5. Get approval from maintainers
+### Two Repositories Approach
 
-See [REPOSITORY-STRATEGY.md](docs/REPOSITORY-STRATEGY.md) for detailed workflow.
+| Repository | Purpose | Versioning |
+|------------|---------|------------|
+| **terraform-azure-project** | Documentation, pipelines, setup guides | No tags (living docs) |
+| **terraform-azure-modules** | Production modules | Semantic versioning (v1.0.0) |
 
-## 🔗 Related Repositories
+**Why separate?**
+- Different release cycles
+- Clear separation of concerns  
+- Independent CI/CD pipelines
 
-- **[terraform-azure-modules](https://gitlab.com/yourgroup/terraform-azure-modules)** - Production-ready versioned modules
+📖 See [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md) Section 3 for repository setup.
 
-## 📞 Support
+## 📞 Next Steps
 
-- **DevOps Team**: devops@company.com
-- **Documentation**: See [docs/](docs/) folder
-- **Issues**: Create issue in GitLab
+### Immediate Actions (You)
+- [ ] Build Docker image and test locally
+- [ ] Create Azure Storage Account and containers
+- [ ] Create Service Principals (prd, qa, tst)
+- [ ] Save credentials securely
 
-## 📜 License
+### Hand-off to Jenkins Team
+- [ ] Provide Docker image
+- [ ] Share Service Principal credentials
+- [ ] Document Jenkins configuration steps
+- [ ] Coordinate pilot project
 
-Internal use only - Company Name
+### Future Enhancements
+- [ ] Add more Azure modules (AKS, App Service, etc)
+- [ ] Implement automated testing for modules
+- [ ] Add cost estimation in pipelines
+- [ ] Create self-service portal for developers
+
+## 🔗 References
+
+- **Setup Guide**: [docs/SETUP-TRACKING.md](docs/SETUP-TRACKING.md)
+- **Docker Image**: [docker/README.md](docker/README.md)
+- **Pipelines**: [pipelines/README.md](pipelines/README.md)
+- **Modules**: [terraform-modules/README.md](terraform-modules/README.md)
+
+## 📄 Project Status
+
+**Current Phase**: 🚧 Setup in Progress
+
+-  Documentation complete
+-  Docker image optimized
+-  Scripts ready
+-  Azure backend setup (your task)
+-  Jenkins configuration (DevOps team)
+-  First deployment (validation)
 
 ---
 
-**Note**: For production deployments, always use versioned modules from [terraform-azure-modules](https://gitlab.com/yourgroup/terraform-azure-modules) repository.
-
-# Editar variaveis do ambiente
-vim environments/non-prd/terraform.tfvars  # ou prd
-
-# Colar sua chave SSH publica no campo ssh_public_key
-```
-
-### 4. Deploy
-
-```bash
-# Inicializar
-terraform init
-
-# Non-PRD
-terraform plan -var-file="environments/non-prd/terraform.tfvars"
-terraform apply -var-file="environments/non-prd/terraform.tfvars"
-
-# PRD
-terraform plan -var-file="environments/prd/terraform.tfvars"
-terraform apply -var-file="environments/prd/terraform.tfvars"
-```
-
-### 5. Acessar VM
-
-```bash
-terraform output vm_public_ip
-ssh -i ~/.ssh/azure_vm_key azureuser@<IP>
-```
-
-## Modulos Disponiveis
-
-- **vnet** - Virtual Network
-- **subnet** - Subnet
-- **nsg** - Network Security Group
-- **ssh** - SSH Security Rule
-- **vm-linux** - Linux Virtual Machine
-
-Veja detalhes em [`docs/README.md`](docs/README.md)
-
-## Proximos Passos
-
-- [ ] Adicionar backend remoto (Azure Storage)
-- [ ] Configurar pipelines CI/CD
-- [ ] Adicionar mais modulos
-- [ ] Implementar testes automatizados
+**Last Updated**: December 2025  
+**Maintained By**: Platform Engineering Team

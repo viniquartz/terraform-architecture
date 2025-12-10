@@ -18,13 +18,13 @@ Collection of reusable Terraform modules for Azure infrastructure.
 
 All modules follow these standards:
 
-- ✅ Terraform >= 1.5.0 required
-- ✅ Azure Provider ~> 3.0 required
-- ✅ Input validation where applicable
-- ✅ Comprehensive descriptions on all variables
-- ✅ Security best practices enforced
-- ✅ Example usage included
-- ✅ README documentation
+-  Terraform >= 1.5.0 required
+-  Azure Provider ~> 3.0 required
+-  Input validation where applicable
+-  Comprehensive descriptions on all variables
+-  Security best practices enforced
+-  Example usage included
+-  README documentation
 
 ## Quick Start
 
@@ -332,7 +332,7 @@ Siga **Semantic Versioning**:
 - `v1.1.0` - Minor release (new features)
 - `v1.1.1` - Patch release (bug fixes)
 
-## 📦 Usando Módulos
+##  Usando Módulos
 
 ### Referência por Tag
 ```hcl
@@ -354,7 +354,7 @@ module "network" {
 }
 ```
 
-## ✅ Checklist para Novos Módulos
+##  Checklist para Novos Módulos
 
 - [ ] Código implementado (main.tf)
 - [ ] Variáveis documentadas (variables.tf)
@@ -368,14 +368,14 @@ module "network" {
 - [ ] Code review aprovado
 - [ ] Tag de versão criada
 
-## 🧪 Executando Testes
+##  Executando Testes
 
 ```bash
 cd networking/virtual-network/tests
 go test -v -timeout 30m
 ```
 
-## 🔒 Segurança
+##  Segurança
 
 Todos os módulos são escaneados automaticamente:
 - **TFSec**: Análise de segurança estática

@@ -1,10 +1,10 @@
 # Terraform Azure - Setup Guide (Work in Progress)
 
-**Status**: 🚧 Documento de construção do projeto - será convertido em documentação após conclusão
+**Status**: [WIP] Documento de construção do projeto - será convertido em documentação após conclusão
 
 ---
 
-## 📋 Tracking de Progresso
+## Tracking de Progresso
 
 ### Fase 1: Infraestrutura Base
 - [ ] 1.1 - Azure Backend configurado
@@ -28,7 +28,7 @@
 
 ---
 
-## 🎯 Arquitetura Final
+## Arquitetura Final
 
 ```
 ┌─────────────┐      ┌─────────────┐      ┌──────────────┐
@@ -46,7 +46,7 @@
 
 ---
 
-## 📦 PARTE 1: Azure Backend Setup
+## PARTE 1: Azure Backend Setup
 
 ### Estrutura de Containers e State Files
 
@@ -70,13 +70,13 @@ Storage Account: terraformstatestorage
 ```
 
 **Decisão de Design**:
-- ✅ **1 container por ambiente** (prd, qa, tst)
-- ✅ **Keys organizados por projeto** dentro de cada container
-- ✅ **Cada projeto tem sua própria arquitetura** (power-bi, digital-cabin, projeto-X, etc)
-- ✅ **Isolamento claro** entre ambientes
-- ✅ **RBAC granular** - SPs diferentes para cada ambiente
-- ✅ **Fácil navegação** - todos os projetos de um ambiente juntos
-- ✅ **Simplicidade** - estrutura flat, fácil de entender e escalar até 20+ projetos
+- **1 container por ambiente** (prd, qa, tst)
+- **Keys organizados por projeto** dentro de cada container
+- **Cada projeto tem sua própria arquitetura** (power-bi, digital-cabin, projeto-X, etc)
+- **Isolamento claro** entre ambientes
+- **RBAC granular** - SPs diferentes para cada ambiente
+- **Fácil navegação** - todos os projetos de um ambiente juntos
+- **Simplicidade** - estrutura flat, fácil de entender e escalar até 20+ projetos
 
 **Por quê simples?**
 - Menos overhead de gestão
@@ -143,7 +143,18 @@ az storage container list \
   --output table
 ```
 
-**✅ Checkpoint**: Você deve ver 3 containers criados: `terraform-state-prd`, `terraform-state-qa`, `terraform-state-tst`
+**Checkpoint**: Você deve ver 3 containers criados: `terraform-state-prd`, `terraform-state-qa`, `terraform-state-tst`
+
+---
+
+### 1.2 - Criar Service Principals por Ambiente
+
+Cada ambiente (PRD, QA, TST) precisa de seu próprio Service Principal com:
+
+```bash
+# PRD
+az ad sp create-for-rbac --name sp-terraform-prd --role Contributor
+# [IMPORTANTE] SALVAR EM SEGREDO: appId, password, tenant
 
 ### 1.2 - Criar Service Principals
 
@@ -160,7 +171,7 @@ az ad sp create-for-rbac \
   --output json > sp-prd.json
 
 cat sp-prd.json
-# ⚠️ SALVAR EM SEGREDO: appId, password, tenant
+#  SALVAR EM SEGREDO: appId, password, tenant
 
 # Service Principal para QA
 echo "=== Criando SP para QA ==="
@@ -182,11 +193,11 @@ az ad sp create-for-rbac \
 
 cat sp-tst.json
 
-# ⚠️ DELETAR OS ARQUIVOS JSON APÓS SALVAR AS CREDENCIAIS!
+#  DELETAR OS ARQUIVOS JSON APÓS SALVAR AS CREDENCIAIS!
 rm sp-*.json
 ```
 
-**📝 Anotar**:
+** Anotar**:
 ```
 PRD:
   client_id: _______________
@@ -234,7 +245,7 @@ az role assignment create \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-tst"
 ```
 
-**✅ Checkpoint**: Cada SP tem acesso apenas ao seu container específico
+** Checkpoint**: Cada SP tem acesso apenas ao seu container específico
 
 ---
 
@@ -266,13 +277,13 @@ java -version
 ```
 
 **Melhorias implementadas**:
-- ✅ **Multi-stage build** - reduz tamanho da imagem final (~30-40%)
-- ✅ **--no-install-recommends** - remove pacotes desnecessários
-- ✅ **openjdk-17-jre-headless** - JRE ao invés de JDK completo
-- ✅ **Layers otimizados** - melhor uso de cache
-- ✅ **Validations comentadas** - remover após testar
+-  **Multi-stage build** - reduz tamanho da imagem final (~30-40%)
+-  **--no-install-recommends** - remove pacotes desnecessários
+-  **openjdk-17-jre-headless** - JRE ao invés de JDK completo
+-  **Layers otimizados** - melhor uso de cache
+-  **Validations comentadas** - remover após testar
 
-**🗑️ O que deletar depois**:
+** O que deletar depois**:
 No Dockerfile, após confirmar que tudo funciona, **deletar** o bloco:
 ```dockerfile
 # ==============================================================================
@@ -294,7 +305,14 @@ docker push seu-usuario/jenkins-terraform-agent:1.0
 # Opção B: Azure Container Registry
 az acr login --name myregistry
 docker tag jenkins-terraform-agent:1.0 myregistry.azurecr.io/jenkins-terraform-agent:1.0
-docker push myregistry.azurecr.io/jenkins-terraform-agent:1.0
+docker push <registry>/terraform-agent:1.0.0
+```
+
+**Checkpoint**: Imagem disponível no registry escolhido
+
+---
+
+## PARTE 3: Repositórios Git
 
 # Opção C: GitLab Container Registry
 docker login registry.gitlab.com
@@ -302,7 +320,7 @@ docker tag jenkins-terraform-agent:1.0 registry.gitlab.com/yourgroup/jenkins-ter
 docker push registry.gitlab.com/yourgroup/jenkins-terraform-agent:1.0
 ```
 
-**✅ Checkpoint**: Imagem disponível no registry escolhido
+** Checkpoint**: Imagem disponível no registry escolhido
 
 ---
 
@@ -403,7 +421,14 @@ git push -u origin main
 git push origin v1.0.0
 ```
 
-**✅ Checkpoint**: 2 repositórios criados e primeira tag v1.0.0 no modules repo
+**Checkpoint**: 2 repositórios criados e primeira tag v1.0.0 no modules repo
+
+---
+
+## PARTE 4: Jenkins Configuration
+```
+
+** Checkpoint**: 2 repositórios criados e primeira tag v1.0.0 no modules repo
 
 ---
 
@@ -450,7 +475,7 @@ Name: docker-agents
 Type: Docker
 
 Docker Host URI: unix:///var/run/docker.sock
-Enabled: ✓
+Enabled: 
 
 Docker Agent Template:
   Labels: terraform-azure-agent
@@ -497,7 +522,7 @@ Pipeline script from SCM:
   Script Path: pipelines/terraform-deploy-pipeline.groovy
 ```
 
-**✅ Checkpoint**: Jenkins configurado com Docker agent e 2 pipelines
+** Checkpoint**: Jenkins configurado com Docker agent e 2 pipelines
 
 ---
 
@@ -582,11 +607,11 @@ terraform plan
 terraform apply
 ```
 
-**✅ Checkpoint**: State file criado no Azure Storage
+** Checkpoint**: State file criado no Azure Storage
 
 ---
 
-## 🔍 PARTE 6: Validação Final
+##  PARTE 6: Validação Final
 
 ### 6.1 - Verificar State no Azure
 
@@ -634,11 +659,11 @@ ACTION: plan
 ```
 
 Verificar:
-- ✅ Docker agent inicia
-- ✅ Checkout do código
-- ✅ Terraform init OK
-- ✅ Terraform plan OK
-- ✅ Notificação no Teams (se configurado)
+-  Docker agent inicia
+-  Checkout do código
+-  Terraform init OK
+-  Terraform plan OK
+-  Notificação no Teams (se configurado)
 
 **Nota**: Cada projeto (power-bi, digital-cabin, projeto-X) tem sua própria arquitetura Terraform específica
 
@@ -732,7 +757,7 @@ az role assignment create \
 
 ---
 
-## ✅ Checklist Final
+##  Checklist Final
 
 Antes de considerar completo:
 
@@ -764,7 +789,7 @@ Antes de considerar completo:
 
 ---
 
-## 📝 Notas Finais
+##  Notas Finais
 
 **Docker Compose**: Removido - não necessário. Foi usado apenas para teste local inicial. Use `docker run` diretamente ou Jenkins.
 

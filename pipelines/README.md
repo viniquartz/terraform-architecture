@@ -56,7 +56,7 @@ Envia eventos e métricas ao Dynatrace.
 - `terraform.pipeline.status`: Status (1=success, 0=failure)
 - `terraform.drift.detected`: Drift detectado
 
-## 📦 Instalação no Jenkins
+##  Instalação no Jenkins
 
 ### 1. Criar Jenkins Shared Library
 
@@ -169,7 +169,7 @@ Eventos notificados:
 - Drift detectado
 - Falhas de validação
 
-## 🚀 Exemplo de Uso
+##  Exemplo de Uso
 
 ### Deploy de um Projeto
 

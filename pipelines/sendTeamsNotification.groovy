@@ -16,7 +16,7 @@ def call(Map config = [:]) {
         'STARTED': '[START]',
         'SUCCESS': '[SUCCESS]',
         'FAILURE': '[ERROR]',
-        'PENDING_APPROVAL': '⏳',
+        'PENDING_APPROVAL': '[WAIT]',
         'DRIFT_DETECTED': '[WARNING]'
     ][config.status] ?: '[INFO]'
     

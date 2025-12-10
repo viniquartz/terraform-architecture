@@ -14,7 +14,7 @@ def call(Map config = [:]) {
             )
             choice(
                 name: 'ENVIRONMENT',
-                choices: ['development', 'testing', 'staging', 'production'],
+                choices: ['prd', 'qa', 'tst'],
                 description: 'Ambiente alvo'
             )
             choice(

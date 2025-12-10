@@ -24,24 +24,19 @@ def call(Map config = [:]) {
         stages {
             stage('Validate All Environments') {
                 parallel {
-                    stage('Development') {
+                    stage('Production') {
                         steps {
-                            validateEnvironment('development')
+                            validateEnvironment('prd')
+                        }
+                    }
+                    stage('QA') {
+                        steps {
+                            validateEnvironment('qa')
                         }
                     }
                     stage('Testing') {
                         steps {
-                            validateEnvironment('testing')
-                        }
-                    }
-                    stage('Staging') {
-                        steps {
-                            validateEnvironment('staging')
-                        }
-                    }
-                    stage('Production') {
-                        steps {
-                            validateEnvironment('production')
+                            validateEnvironment('tst')
                         }
                     }
                 }

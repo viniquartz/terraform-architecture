@@ -30,7 +30,7 @@ SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
 log_info "Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 
 # Criar Service Principals por ambiente
-ENVIRONMENTS=("development" "testing" "staging" "production")
+ENVIRONMENTS=("prd" "qa" "tst")
 
 for ENV in "${ENVIRONMENTS[@]}"; do
     SP_NAME="sp-terraform-${ENV}"
@@ -96,7 +96,7 @@ EOF
             --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode ja existir"
     fi
     
-    log_info "✅ $SP_NAME configurado\n"
+    log_info "[OK] $SP_NAME configurado\n"
 done
 
 # Criar arquivo para Jenkins credentials
@@ -106,7 +106,7 @@ cat > ".credentials/jenkins-credentials.txt" <<'EOF'
 # CREDENCIAIS PARA JENKINS
 # Adicione estas credenciais usando o Jenkins Credentials Plugin
 
-Para cada ambiente (development, testing, staging, production):
+Para cada ambiente (prd, qa, tst):
 
 1. Tipo: Username with password
    ID: azure-sp-{environment}
@@ -138,19 +138,18 @@ done
 
 log_info ""
 log_info "=========================================="
-log_info "✅ TODOS OS SERVICE PRINCIPALS CRIADOS"
+log_info "[OK] TODOS OS SERVICE PRINCIPALS CRIADOS"
 log_info "=========================================="
 log_info ""
 log_info "Arquivos gerados em .credentials/:"
-log_info "  - development-sp.json"
-log_info "  - testing-sp.json"
-log_info "  - staging-sp.json"
-log_info "  - production-sp.json"
+log_info "  - prd-sp.json"
+log_info "  - qa-sp.json"
+log_info "  - tst-sp.json"
 log_info "  - jenkins-credentials.txt"
 log_info ""
-log_info "⚠️  IMPORTANTE:"
+log_info "[IMPORTANTE]:"
 log_info "1. Adicione as credenciais no Jenkins (ver jenkins-credentials.txt)"
-log_info "2. NÃO comite os arquivos .credentials/ no Git"
+log_info "2. NAO comite os arquivos .credentials/ no Git"
 log_info "3. Guarde as credenciais em local seguro (ex: Azure Key Vault)"
 log_info "4. Adicione .credentials/ no .gitignore"
 log_info ""

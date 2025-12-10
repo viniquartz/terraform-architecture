@@ -16,7 +16,7 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         def projects = ['project-a', 'project-b', 'project-c']
-                        def environments = ['development', 'testing', 'staging', 'production']
+                        def environments = ['prd', 'qa', 'tst']
                         def driftDetected = []
                         
                         projects.each { project ->
