@@ -4,12 +4,12 @@ Optimized Jenkins image with Terraform and essential tools.
 
 ## Available Versions
 
-### Optimized Version (Recommended) - ~300-400MB
 ```bash
 docker build -t jenkins-terraform:optimized .
 ```
 
 Includes:
+
 - Terraform 1.5.7
 - TFSec 1.28.4
 - Git, curl
@@ -48,23 +48,7 @@ dockerTemplate {
 }
 ```
 
-## Size Reduction
-
-From 2GB to 300-400MB:
-- Base Ubuntu -> Alpine Linux
-- Removed Checkov (rarely used)
-- Removed terraform-docs (optional)
-- Removed Azure CLI (use provider auth)
-- Removed Python dependencies
-
-## Customization
-
-Edit Dockerfile to:
-- Add/remove tools
-- Adjust versions
-- Modify Jenkins user
-
-##  Quick Start
+## Quick Start
 
 ### 1. Build the Image
 
@@ -144,7 +128,7 @@ docker tag jenkins-terraform-agent:1.0 registry.gitlab.com/yourgroup/jenkins-ter
 docker push registry.gitlab.com/yourgroup/jenkins-terraform-agent:1.0
 ```
 
-## 🔧 Jenkins Configuration
+## Jenkins Configuration
 
 ### Docker Cloud Setup
 
@@ -171,6 +155,7 @@ Docker Agent Template:
 Add these credentials in Jenkins (Secret text type):
 
 **Per Environment (prd/qlt/tst)**:
+
 - `azure-sp-{env}-client-id`
 - `azure-sp-{env}-client-secret`
 - `azure-sp-{env}-subscription-id`
@@ -206,127 +191,3 @@ pipeline {
   }
 }
 ```
-
-## 🎨 Customization
-
-### Build Arguments
-
-Available build arguments:
-
-```dockerfile
-ARG TERRAFORM_VERSION=1.5.7
-ARG TFSEC_VERSION=1.28.4
-ARG TERRAFORM_DOCS_VERSION=0.17.0
-ARG JENKINS_USER=jenkins
-ARG JENKINS_UID=1000
-ARG JENKINS_GID=1000
-```
-
-### Custom Build Example
-
-```bash
-docker build \
-  --build-arg TERRAFORM_VERSION=1.6.0 \
-  --build-arg TFSEC_VERSION=1.28.5 \
-  --build-arg JENKINS_UID=2000 \
-  -t jenkins-terraform-agent:custom .
-```
-
-##  Post-Validation Cleanup
-
-After confirming the image works in Jenkins, remove the validation section from Dockerfile:
-
-**Delete lines 107-119** (between VALIDATION SECTION comments)
-
-This saves ~50MB and removes unnecessary output during builds.
-
-```bash
-# Edit Dockerfile, remove validation section
-vim Dockerfile
-
-# Rebuild optimized image
-docker build -t jenkins-terraform-agent:1.0 .
-```
-
-## 🐛 Troubleshooting
-
-### Image size too large
-
- **Solution**: Multi-stage build already implemented (~800MB vs ~1.2GB)
-- Remove validation section after testing
-- Use `--no-install-recommends` (already in place)
-- JRE instead of JDK (already in place)
-
-### Tool version mismatch
-
- **Solution**: Use build arguments to specify versions
-
-```bash
-docker build --build-arg TERRAFORM_VERSION=1.6.0 -t jenkins-terraform-agent:1.0 .
-```
-
-### Permission issues in Jenkins
-
- **Solution**: Match Jenkins UID/GID
-
-```bash
-# Find Jenkins UID/GID on host
-id jenkins
-
-# Rebuild with matching UID/GID
-docker build \
-  --build-arg JENKINS_UID=1001 \
-  --build-arg JENKINS_GID=1001 \
-  -t jenkins-terraform-agent:1.0 .
-```
-
-### Azure CLI authentication fails
-
- **Solution**: Verify Service Principal credentials
-
-```bash
-# Test SP manually
-az login --service-principal \
-  -u <client-id> \
-  -p <client-secret> \
-  --tenant <tenant-id>
-
-# Verify permissions
-az account show
-az role assignment list --assignee <client-id>
-```
-
-## Image Layers
-
-The multi-stage build creates two stages:
-
-**Stage 1 (builder)**: Downloads binaries
-- Terraform zip
-- TFSec binary
-- terraform-docs binary
-- Discarded after build
-
-**Stage 2 (final)**: Runtime image
-- Ubuntu 22.04 base
-- Runtime dependencies only
-- Copied binaries from builder
-- User setup (non-root)
-
-##  Security Features
-
--  Non-root user (jenkins)
--  No passwords stored in image
--  Minimal attack surface (no build tools)
--  TLS 1.2+ only for Azure CLI
--  No secrets in layers
-
-##  References
-
-- Dockerfile: [Dockerfile](Dockerfile)
-- Setup Guide: [docs/SETUP-TRACKING.md](../docs/SETUP-TRACKING.md)
-- Pipelines: [pipelines/](../pipelines/)
-
----
-
-**Last Updated**: December 2025  
-**Maintained By**: Platform Engineering Team
