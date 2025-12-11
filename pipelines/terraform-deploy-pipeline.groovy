@@ -1,5 +1,5 @@
 // vars/terraformDeploy.groovy (Jenkins Shared Library)
-// Pipeline principal para deploy e destroy de recursos Terraform
+// Main pipeline for deploying and destroying Terraform resources
 
 def call(Map config = [:]) {
     pipeline {
@@ -10,22 +10,22 @@ def call(Map config = [:]) {
         parameters {
             string(
                 name: 'PROJECT_NAME',
-                description: 'Nome do projeto (ex: project-a, project-b)'
+                description: 'Project name (e.g., project-a, project-b)'
             )
             choice(
                 name: 'ENVIRONMENT',
                 choices: ['prd', 'qlt', 'tst'],
-                description: 'Ambiente alvo'
+                description: 'Target environment'
             )
             choice(
                 name: 'ACTION',
                 choices: ['plan', 'apply', 'destroy'],
-                description: 'Ação Terraform'
+                description: 'Terraform action'
             )
             string(
                 name: 'GIT_BRANCH',
                 defaultValue: 'main',
-                description: 'Branch do repositório'
+                description: 'Repository branch'
             )
         }
         

@@ -1,12 +1,12 @@
-# Backend e State Files - Guia de Administracao
+# Backend and State Files - Administration Guide
 
-## O Que É
+## What It Is
 
-**Backend**: Onde o Terraform guarda o estado (state file) dos recursos criados.
+**Backend**: Where Terraform stores the state (state file) of created resources.
 
-**State File**: Arquivo JSON que mapeia seus recursos Terraform com recursos reais no Azure.
+**State File**: JSON file that maps your Terraform resources to real resources in Azure.
 
-## Arquitetura
+## Architecture
 
 ```
 Azure Storage Account: stterraformstate
@@ -18,80 +18,80 @@ Azure Storage Account: stterraformstate
 ├── Container: terraform-state-qlt
 │   └── (mesma estrutura)
 └── Container: terraform-state-tst
-    └── (mesma estrutura)
+    └── (same structure)
 ```
 
-## Configuracao Inicial
+## Initial Configuration
 
-### 1. Criar Infrastructure de Backend
+### 1. Create Backend Infrastructure
 
 ```bash
-# Executar uma vez
+# Run once
 cd scripts/setup
 ./configure-azure-backend.sh
 
-# Resultado:
+# Result:
 # - Resource Group: rg-terraform-state
 # - Storage Account: stterraformstate
 # - Containers: terraform-state-prd, terraform-state-qlt, terraform-state-tst
 ```
 
-### 2. Criar Service Principals
+### 2. Create Service Principals
 
 ```bash
-# Criar SPs para cada ambiente
+# Create SPs for each environment
 ./create-service-principals.sh
 
-# Resultado:
+# Result:
 # - sp-terraform-prd (Contributor)
 # - sp-terraform-qlt (Contributor)
 # - sp-terraform-tst (Contributor)
-# - Credenciais salvas em .credentials/
+# - Credentials saved in .credentials/
 ```
 
-### 3. Configurar Credenciais
+### 3. Configure Credentials
 
 ```bash
-# Ver credenciais geradas
+# View generated credentials
 cat .credentials/jenkins-credentials.txt
 
-# Adicionar no Jenkins ou exportar localmente
-export ARM_CLIENT_ID="client-id-do-sp"
-export ARM_CLIENT_SECRET="secret-do-sp"
+# Add to Jenkins or export locally
+export ARM_CLIENT_ID="sp-client-id"
+export ARM_CLIENT_SECRET="sp-secret"
 export ARM_TENANT_ID="tenant-id"
 export ARM_SUBSCRIPTION_ID="subscription-id"
 ```
 
-## Como Funciona
+## How It Works
 
-### Backend Dinamico
+### Dynamic Backend
 
-Cada projeto usa backend.tf vazio:
+Each project uses empty backend.tf:
 
 ```hcl
 terraform {
   backend "azurerm" {
-    # Configurado dinamicamente por scripts
+    # Configured dynamically by scripts
   }
 }
 ```
 
-Scripts injetam valores em runtime:
+Scripts inject values at runtime:
 
 ```bash
-# Script cria backend-config.tfbackend
+# Script creates backend-config.tfbackend
 resource_group_name  = "rg-terraform-state"
 storage_account_name = "stterraformstate"
 container_name       = "terraform-state-prd"
 key                  = "my-project/terraform.tfstate"
 
-# Terraform init usa esse arquivo
+# Terraform init uses this file
 terraform init -backend-config=backend-config.tfbackend
 ```
 
-### Organizacao de States
+### State Organization
 
-Regra: Um state file por projeto por ambiente
+Rule: One state file per project per environment
 
 ```
 projeto-a em TST: terraform-state-tst/projeto-a/terraform.tfstate
@@ -99,62 +99,62 @@ projeto-a em PRD: terraform-state-prd/projeto-a/terraform.tfstate
 projeto-b em PRD: terraform-state-prd/projeto-b/terraform.tfstate
 ```
 
-## Seguranca
+## Security
 
-### Acesso por Ambiente
+### Access by Environment
 
-- **PRD**: Apenas pipeline CI/CD e SRE
-- **QLT**: Desenvolvedores + Pipeline
-- **TST**: Todos os desenvolvedores
+- **PRD**: Only CI/CD pipeline and SRE
+- **QLT**: Developers + Pipeline
+- **TST**: All developers
 
 ### Service Principals
 
-Cada ambiente tem SP proprio:
-- sp-terraform-prd: Apenas PRD
-- sp-terraform-qlt: Apenas QLT
-- sp-terraform-tst: Apenas TST
+Each environment has its own SP:
+- sp-terraform-prd: PRD only
+- sp-terraform-qlt: QLT only
+- sp-terraform-tst: TST only
 
-### Protecoes
+### Protections
 
-- Soft delete: 30 dias
-- Versioning: Habilitado
-- TLS 1.2 minimo
-- Acesso publico: Desabilitado
+- Soft delete: 30 days
+- Versioning: Enabled
+- TLS 1.2 minimum
+- Public access: Disabled
 
-## Operacoes Comuns
+## Common Operations
 
-### Ver State File
+### View State File
 
 ```bash
-# Baixar state
+# Download state
 terraform state pull > current-state.json
 
-# Ver recursos
+# View resources
 terraform state list
 
-# Ver detalhes de um recurso
+# View resource details
 terraform state show azurerm_resource_group.main
 ```
 
-### Backup Manual
+### Manual Backup
 
 ```bash
-# States tem versioning automatico no Azure
-# Para backup manual:
+# States have automatic versioning in Azure
+# For manual backup:
 terraform state pull > backup-$(date +%Y%m%d).json
 ```
 
-### Restaurar State
+### Restore State
 
 ```bash
-# Listar versoes disponiveis
+# List available versions
 az storage blob list \
   --account-name stterraformstate \
   --container-name terraform-state-prd \
   --prefix my-project/ \
   --include v
 
-# Baixar versao especifica
+# Download specific version
 az storage blob download \
   --account-name stterraformstate \
   --container-name terraform-state-prd \
@@ -163,90 +163,90 @@ az storage blob download \
   --file terraform.tfstate.backup
 ```
 
-### Liberar Lock Travado
+### Release Locked Lock
 
 ```bash
-# Se state ficar locked
+# If state is locked
 terraform force-unlock <LOCK_ID>
 
-# LOCK_ID aparece no erro
+# LOCK_ID appears in error
 ```
 
-### Mover Recurso no State
+### Move Resource in State
 
 ```bash
-# Renomear recurso no state
+# Rename resource in state
 terraform state mv azurerm_resource_group.old azurerm_resource_group.new
 
-# Remover recurso do state (sem destruir)
+# Remove resource from state (without destroying)
 terraform state rm azurerm_resource_group.test
 ```
 
-### Importar Recurso Existente
+### Import Existing Resource
 
 ```bash
-# Recurso criado fora do Terraform
+# Resource created outside Terraform
 terraform import azurerm_resource_group.main /subscriptions/{sub-id}/resourceGroups/rg-name
 ```
 
 ## Troubleshooting
 
-### State Corrompido
+### Corrupted State
 
 ```bash
-# 1. Verificar versoes anteriores
+# 1. Check previous versions
 az storage blob list --include v ...
 
-# 2. Restaurar versao anterior
+# 2. Restore previous version
 az storage blob download --version-id ...
 
-# 3. Validar state restaurado
+# 3. Validate restored state
 terraform plan
 ```
 
-### Lock Travado
+### Stuck Lock
 
 ```bash
-# Causa: Pipeline interrompido ou rede
-# Solucao:
+# Cause: Interrupted pipeline or network
+# Solution:
 terraform force-unlock <LOCK_ID>
 ```
 
-### State Inconsistente
+### Inconsistent State
 
 ```bash
-# Recurso existe no Azure mas nao no state
+# Resource exists in Azure but not in state
 terraform import ...
 
-# Recurso no state mas nao existe no Azure
+# Resource in state but doesn't exist in Azure
 terraform state rm ...
 ```
 
-### Backend Inacessivel
+### Inaccessible Backend
 
 ```bash
-# Verificar credenciais
+# Check credentials
 az login
 az account show
 
-# Testar acesso ao storage
+# Test storage access
 az storage blob list \
   --account-name stterraformstate \
   --container-name terraform-state-tst
 ```
 
-## Monitoramento
+## Monitoring
 
-### Metricas Importantes
+### Important Metrics
 
 ```bash
-# Tamanho dos state files
+# State file sizes
 az storage blob list \
   --account-name stterraformstate \
   --container-name terraform-state-prd \
   --query "[].{Name:name, Size:properties.contentLength}"
 
-# Ultima modificacao
+# Last modified
 az storage blob show \
   --account-name stterraformstate \
   --container-name terraform-state-prd \
@@ -254,12 +254,12 @@ az storage blob show \
   --query "properties.lastModified"
 ```
 
-### Alertas Recomendados
+### Recommended Alerts
 
-- State modificado em PRD fora do horario
-- Lock duration > 15 minutos
+- State modified in PRD outside hours
+- Lock duration > 15 minutes
 - State file > 10 MB
-- Falhas de acesso
+- Access failures
 
 ## Boas Praticas
 
@@ -279,35 +279,35 @@ az storage blob show \
 - Force-unlock sem investigar
 - State local em time
 - Commit de state no Git
-- Applies simultaneos no mesmo state
+- Simultaneous applies on same state
 
-## Manutencao
+## Maintenance
 
-### Diaria
+### Daily
 
-- Monitorar pipelines
-- Verificar alertas
+- Monitor pipelines
+- Check alerts
 
-### Semanal
+### Weekly
 
-- Revisar tamanho dos states
-- Verificar backups (versioning)
-- Limpar states de projetos descontinuados
+- Review state sizes
+- Verify backups (versioning)
+- Clean up states from discontinued projects
 
-### Mensal
+### Monthly
 
-- Auditoria de acessos
-- Revisar permissoes
-- Testar procedimentos de recuperacao
+- Access audit
+- Review permissions
+- Test recovery procedures
 
-## Contatos
+## Contacts
 
-- **SRE Team**: Problemas com backend
-- **Platform Engineering**: Duvidas sobre setup
-- **Security**: Problemas com credenciais
+- **SRE Team**: Backend issues
+- **Platform Engineering**: Setup questions
+- **Security**: Credential issues
 
-## Referencias
+## References
 
-- Template de projeto: terraform-project-template/
-- Scripts de setup: scripts/setup/
-- Scripts de deploy: scripts/deployment/
+- Project template: terraform-project-template/
+- Setup scripts: scripts/setup/
+- Deploy scripts: scripts/deployment/

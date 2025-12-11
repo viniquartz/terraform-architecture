@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script para criar Service Principals para Terraform
+# Script to create Service Principals for Terraform
 
 set -e
 
@@ -7,13 +7,13 @@ log_info() { echo "[INFO] $1"; }
 log_error() { echo "[ERROR] $1"; exit 1; }
 log_warning() { echo "[WARNING] $1"; }
 
-# Verificações
+# Checks
 if ! command -v az &> /dev/null; then
-    log_error "Azure CLI nao instalado"
+    log_error "Azure CLI not installed"
 fi
 
 if ! az account show &> /dev/null; then
-    log_error "Execute: az login"
+    log_error "Run: az login"
 fi
 
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
@@ -21,24 +21,24 @@ SUBSCRIPTION_NAME=$(az account show --query name -o tsv)
 
 log_info "Subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
 
-# Criar Service Principals por ambiente
+# Create Service Principals per environment
 ENVIRONMENTS=("prd" "qlt" "tst")
 
 for ENV in "${ENVIRONMENTS[@]}"; do
     SP_NAME="sp-terraform-${ENV}"
     
-    log_info "Criando Service Principal: $SP_NAME"
+    log_info "Creating Service Principal: $SP_NAME"
     
-    # Verificar se ja existe
+    # Check if already exists
     if az ad sp list --display-name "$SP_NAME" --query '[0].appId' -o tsv &> /dev/null; then
         APP_ID=$(az ad sp list --display-name "$SP_NAME" --query '[0].appId' -o tsv)
-        log_warning "Service Principal ja existe (AppId: $APP_ID)"
+        log_warning "Service Principal already exists (AppId: $APP_ID)"
         
-        # Resetar credenciais
-        log_info "Resetando credenciais..."
+        # Reset credentials
+        log_info "Resetting credentials..."
         CREDENTIALS=$(az ad sp credential reset --id "$APP_ID" --query "{appId: appId, password: password, tenant: tenant}" -o json)
     else
-        # Criar novo
+        # Create new
         CREDENTIALS=$(az ad sp create-for-rbac \
             --name "$SP_NAME" \
             --role Contributor \
@@ -46,15 +46,15 @@ for ENV in "${ENVIRONMENTS[@]}"; do
             --query "{appId: appId, password: password, tenant: tenant}" \
             -o json)
         
-        log_info "Service Principal criado"
+        log_info "Service Principal created"
     fi
     
-    # Extrair valores
+    # Extract values
     APP_ID=$(echo "$CREDENTIALS" | jq -r '.appId')
     PASSWORD=$(echo "$CREDENTIALS" | jq -r '.password')
     TENANT_ID=$(echo "$CREDENTIALS" | jq -r '.tenant')
     
-    # Salvar em arquivo seguro
+    # Save to secure file
     mkdir -p .credentials
     cat > ".credentials/${ENV}-sp.json" <<EOF
 {
@@ -67,25 +67,25 @@ for ENV in "${ENVIRONMENTS[@]}"; do
 EOF
     chmod 600 ".credentials/${ENV}-sp.json"
     
-    log_info "Credenciais salvas em: .credentials/${ENV}-sp.json"
+    log_info "Credentials saved to: .credentials/${ENV}-sp.json"
     
-    # Aguardar propagação
-    log_info "Aguardando propagacao (10s)"
+    # Wait for propagation
+    log_info "Waiting for propagation (10s)"
     sleep 10
     
-    log_info "$SP_NAME configurado"
+    log_info "$SP_NAME configured"
     echo ""
 done
 
-# Criar arquivo para Jenkins
-log_info "Gerando arquivo de credenciais"
+# Create file for Jenkins
+log_info "Generating credentials file"
 
 cat > ".credentials/jenkins-credentials.txt" <<'EOF'
-CREDENCIAIS PARA JENKINS
+CREDENTIALS FOR JENKINS
 
-Adicione no Jenkins Credentials Plugin:
+Add to Jenkins Credentials Plugin:
 
-Para cada ambiente (prd, qlt, tst):
+For each environment (prd, qlt, tst):
   1. Username with password
      ID: azure-sp-{environment}
      Username: {client_id}
@@ -99,7 +99,7 @@ Para cada ambiente (prd, qlt, tst):
      ID: azure-subscription-id
      Secret: {subscription_id}
 
-Valores:
+Values:
 EOF
 
 for ENV in "${ENVIRONMENTS[@]}"; do
@@ -113,20 +113,20 @@ done
 
 log_info ""
 log_info "=========================================="
-log_info "Service Principals criados"
+log_info "Service Principals created"
 log_info "=========================================="
 log_info ""
-log_info "Arquivos em .credentials/:"
+log_info "Files in .credentials/:"
 log_info "  - prd-sp.json"
 log_info "  - qlt-sp.json"
 log_info "  - tst-sp.json"
 log_info "  - jenkins-credentials.txt"
 log_info ""
-log_info "IMPORTANTE:"
-log_info "  1. Adicione credenciais no Jenkins"
-log_info "  2. NAO comite .credentials/ no Git"
-log_info "  3. Guarde em local seguro"
+log_info "IMPORTANT:"
+log_info "  1. Add credentials to Jenkins"
+log_info "  2. DO NOT commit .credentials/ to Git"
+log_info "  3. Store in secure location"
 log_info ""
-log_info "Para testar:"
+log_info "To test:"
 log_info "  az login --service-principal -u <APP_ID> -p <PASSWORD> --tenant <TENANT_ID>"
 log_info "=========================================="

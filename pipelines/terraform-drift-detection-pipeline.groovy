@@ -1,5 +1,5 @@
 // vars/terraformDriftDetection.groovy (Jenkins Shared Library)
-// Pipeline agendada para detectar drift em todos os projetos
+// Scheduled pipeline to detect drift in all projects
 
 def call(Map config = [:]) {
     pipeline {

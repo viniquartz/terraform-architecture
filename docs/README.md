@@ -1,30 +1,30 @@
 # Terraform Azure POC
 
-**Versao:** 1.0 POC  
-**Data:** 2 de Dezembro de 2025
+**Version:** 1.0 POC  
+**Date:** December 2, 2025
 
 ---
 
-## Objetivo
+## Objective
 
-Proof of Concept (POC) para implementar Infrastructure as Code (IaC) usando Terraform no Azure.
+Proof of Concept (POC) to implement Infrastructure as Code (IaC) using Terraform on Azure.
 
-## Estrutura do Repositorio
+## Repository Structure
 
 ```
 terraform-azure-project/
 ├── README.md
 ├── docs/
-│   └── README.md              # Este arquivo
-├── pipelines/                 # Jenkins pipelines (futuro)
-├── scripts/                   # Scripts auxiliares
-├── terraform-modules/         # Modulos reutilizaveis
+│   └── README.md              # This file
+├── pipelines/                 # Jenkins pipelines (future)
+├── scripts/                   # Auxiliary scripts
+├── terraform-modules/         # Reusable modules
 │   ├── vnet/
 │   ├── subnet/
 │   ├── nsg/
 │   ├── ssh/
 │   └── vm-linux/
-└── template/                  # Template de infraestrutura
+└── template/                  # Infrastructure template
     ├── providers.tf
     ├── main.tf
     ├── variables.tf
@@ -36,87 +36,87 @@ terraform-azure-project/
             └── terraform.tfvars
 ```
 
-## Modulos Disponiveis
+## Available Modules
 
 ### 1. VNET (Virtual Network)
-Cria uma rede virtual no Azure.
+Creates a virtual network in Azure.
 
 **Inputs:**
-- `vnet_name` - Nome da VNET
-- `location` - Regiao do Azure
-- `resource_group_name` - Nome do resource group
-- `address_space` - Espaco de enderecamento (CIDR)
-- `tags` - Tags para organizacao
+- `vnet_name` - VNET name
+- `location` - Azure region
+- `resource_group_name` - Resource group name
+- `address_space` - Address space (CIDR)
+- `tags` - Tags for organization
 
 **Outputs:**
-- `vnet_id` - ID da VNET
-- `vnet_name` - Nome da VNET
+- `vnet_id` - VNET ID
+- `vnet_name` - VNET name
 
 ### 2. Subnet
-Cria uma subnet dentro da VNET.
+Creates a subnet within the VNET.
 
 **Inputs:**
-- `subnet_name` - Nome da subnet
-- `resource_group_name` - Nome do resource group
-- `virtual_network_name` - Nome da VNET
-- `address_prefixes` - Prefixos de enderecamento
+- `subnet_name` - Subnet name
+- `resource_group_name` - Resource group name
+- `virtual_network_name` - VNET name
+- `address_prefixes` - Address prefixes
 
 **Outputs:**
-- `subnet_id` - ID da subnet
-- `subnet_name` - Nome da subnet
+- `subnet_id` - Subnet ID
+- `subnet_name` - Subnet name
 
 ### 3. NSG (Network Security Group)
-Cria um grupo de seguranca de rede.
+Creates a network security group.
 
 **Inputs:**
-- `nsg_name` - Nome do NSG
-- `location` - Regiao do Azure
-- `resource_group_name` - Nome do resource group
-- `subnet_id` - ID da subnet (opcional)
+- `nsg_name` - NSG name
+- `location` - Azure region
+- `resource_group_name` - Resource group name
+- `subnet_id` - Subnet ID (optional)
 - `tags` - Tags
 
 **Outputs:**
-- `nsg_id` - ID do NSG
-- `nsg_name` - Nome do NSG
+- `nsg_id` - NSG ID
+- `nsg_name` - NSG name
 
 ### 4. SSH Rule
-Adiciona regra de SSH ao NSG.
+Adds SSH rule to NSG.
 
 **Inputs:**
-- `rule_name` - Nome da regra
-- `priority` - Prioridade (default: 1001)
-- `source_address_prefix` - IP/CIDR de origem
-- `resource_group_name` - Nome do resource group
-- `network_security_group_name` - Nome do NSG
+- `rule_name` - Rule name
+- `priority` - Priority (default: 1001)
+- `source_address_prefix` - Source IP/CIDR
+- `resource_group_name` - Resource group name
+- `network_security_group_name` - NSG name
 
 **Outputs:**
-- `rule_id` - ID da regra
-- `rule_name` - Nome da regra
+- `rule_id` - Rule ID
+- `rule_name` - Rule name
 
 ### 5. VM Linux
-Cria uma maquina virtual Linux.
+Creates a Linux virtual machine.
 
 **Inputs:**
-- `vm_name` - Nome da VM
-- `location` - Regiao do Azure
-- `resource_group_name` - Nome do resource group
-- `vm_size` - Tamanho da VM
-- `admin_username` - Usuario admin
-- `ssh_public_key` - Chave SSH publica
-- `subnet_id` - ID da subnet
-- `enable_public_ip` - Habilitar IP publico (true/false)
-- `os_disk_type` - Tipo de disco (Standard_LRS/Premium_LRS)
+- `vm_name` - VM name
+- `location` - Azure region
+- `resource_group_name` - Resource group name
+- `vm_size` - VM size
+- `admin_username` - Admin user
+- `ssh_public_key` - SSH public key
+- `subnet_id` - Subnet ID
+- `enable_public_ip` - Enable public IP (true/false)
+- `os_disk_type` - Disk type (Standard_LRS/Premium_LRS)
 - `tags` - Tags
 
 **Outputs:**
-- `vm_id` - ID da VM
-- `vm_name` - Nome da VM
-- `private_ip_address` - IP privado
-- `public_ip_address` - IP publico (se habilitado)
+- `vm_id` - VM ID
+- `vm_name` - VM name
+- `private_ip_address` - Private IP
+- `public_ip_address` - Public IP (if enabled)
 
 ## Quick Start
 
-### 1. Pre-requisitos
+### 1. Prerequisites
 
 ```bash
 # Azure CLI
@@ -126,16 +126,16 @@ az login
 terraform version  # >= 1.5.0
 ```
 
-### 2. Gerar chave SSH
+### 2. Generate SSH key
 
 ```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/azure_vm_key
-cat ~/.ssh/azure_vm_key.pub  # Copiar conteudo
+cat ~/.ssh/azure_vm_key.pub  # Copy content
 ```
 
-### 3. Configurar ambiente
+### 3. Configure environment
 
-Edite o arquivo de variaveis do ambiente desejado:
+Edit the variables file for the desired environment:
 
 ```bash
 # Non-PRD
@@ -145,14 +145,14 @@ vim template/environments/non-prd/terraform.tfvars
 vim template/environments/prd/terraform.tfvars
 ```
 
-Cole sua chave SSH publica no campo `ssh_public_key`.
+Paste your SSH public key in the `ssh_public_key` field.
 
 ### 4. Deploy
 
 ```bash
 cd template
 
-# Inicializar
+# Initialize
 terraform init
 
 # Non-PRD
@@ -164,93 +164,93 @@ terraform plan -var-file="environments/prd/terraform.tfvars"
 terraform apply -var-file="environments/prd/terraform.tfvars"
 ```
 
-### 5. Acessar VM
+### 5. Access VM
 
 ```bash
-# Obter IP publico
+# Get public IP
 terraform output vm_public_ip
 
-# Conectar via SSH
+# Connect via SSH
 ssh -i ~/.ssh/azure_vm_key azureuser@<IP>
 ```
 
-### 6. Destruir infraestrutura
+### 6. Destroy infrastructure
 
 ```bash
 terraform destroy -var-file="environments/<env>/terraform.tfvars"
 ```
 
-## Diferencas entre Ambientes
+## Differences Between Environments
 
 | Item | Non-PRD | PRD |
 |------|---------|-----|
-| **Regiao** | West US | East US |
+| **Region** | West US | East US |
 | **VNET CIDR** | 10.1.0.0/16 | 10.0.0.0/16 |
 | **Subnet CIDR** | 10.1.1.0/24 | 10.0.1.0/24 |
-| **VM Size** | Standard_B2s (econômico) | Standard_D2s_v3 (performance) |
+| **VM Size** | Standard_B2s (economical) | Standard_D2s_v3 (performance) |
 | **Disk Type** | Standard_LRS | Premium_LRS |
 
-## Boas Praticas
+## Best Practices
 
-### Organizacao de Modulos
-- Cada modulo em seu proprio diretorio
-- `main.tf` - Recursos principais
-- `variables.tf` - Declaracao de variaveis
-- `outputs.tf` - Outputs do modulo
+### Module Organization
+- Each module in its own directory
+- `main.tf` - Main resources
+- `variables.tf` - Variable declaration
+- `outputs.tf` - Module outputs
 
-### Nomenclatura
-- Usar prefixo para todos os recursos: `${prefix}-<tipo>-${environment}`
-- Exemplos: `myproject-vnet-prd`, `myproject-vm-non-prd`
+### Naming
+- Use prefix for all resources: `${prefix}-<type>-${environment}`
+- Examples: `myproject-vnet-prd`, `myproject-vm-non-prd`
 
-### Variaveis
-- Usar variaveis para tudo que pode mudar entre ambientes
-- Fornecer valores default quando apropriado
-- Documentar todas as variaveis
+### Variables
+- Use variables for everything that can change between environments
+- Provide default values when appropriate
+- Document all variables
 
 ### Tags
-- Sempre adicionar tags aos recursos:
-  - `Environment` - Ambiente (Production/Non-Production)
+- Always add tags to resources:
+  - `Environment` - Environment (Production/Non-Production)
   - `ManagedBy` - Terraform
-  - `Project` - Nome do projeto
-  - `CostCenter` - Centro de custo
+  - `Project` - Project name
+  - `CostCenter` - Cost center
 
-## Proximos Passos
+## Next Steps
 
-Esta e uma POC. Proximas etapas incluem:
+This is a POC. Next steps include:
 
-1. **Backend Remoto** - Configurar Azure Storage para state
-2. **CI/CD** - Implementar pipelines Jenkins
-3. **Modulos Adicionais** - Criar mais modulos conforme necessidade
-4. **Seguranca** - Adicionar scanning de seguranca (tfsec, checkov)
-5. **Documentacao** - Expandir documentacao conforme projeto cresce
+1. **Remote Backend** - Configure Azure Storage for state
+2. **CI/CD** - Implement Jenkins pipelines
+3. **Additional Modules** - Create more modules as needed
+4. **Security** - Add security scanning (tfsec, checkov)
+5. **Documentation** - Expand documentation as project grows
 
-## Comandos Uteis
+## Useful Commandss
 
 ```bash
-# Formatar codigo
+# Format code
 terraform fmt -recursive
 
-# Validar configuracao
+# Validate configuration
 terraform validate
 
-# Ver estado atual
+# View current state
 terraform show
 
-# Listar recursos
+# List resources
 terraform state list
 
-# Ver output especifico
-terraform output <nome>
+# View specific output
+terraform output <name>
 
-# Ver plano sem aplicar
+# View plan without applying
 terraform plan
 
-# Aplicar apenas um recurso
+# Apply only one resource
 terraform apply -target=module.vm
 ```
 
-## Suporte
+## Support
 
-Para duvidas ou problemas, consulte:
+For questions or issues, consult:
 - Documentacao oficial: https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
 - Azure CLI: https://docs.microsoft.com/cli/azure/

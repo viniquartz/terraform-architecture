@@ -1,5 +1,5 @@
 // vars/terraformValidation.groovy (Jenkins Shared Library)
-// Pipeline para validação automática em Pull Requests / Merge Requests
+// Pipeline for automatic validation on Pull Requests / Merge Requests
 
 def call(Map config = [:]) {
     pipeline {

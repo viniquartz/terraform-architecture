@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deploy completo: init + plan + apply
+# Complete deploy: init + plan + apply
 
 set -e
 
@@ -8,35 +8,35 @@ ENVIRONMENT=${2}
 AUTO_APPROVE=${3}
 
 if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ]; then
-    echo "Uso: $0 <project-name> <environment> [--auto-approve]"
-    echo "Exemplo: $0 my-project prd"
+    echo "Usage: $0 <project-name> <environment> [--auto-approve]"
+    echo "Example: $0 my-project prd"
     exit 1
 fi
 
-echo "[INFO] Deploy de $PROJECT_NAME em $ENVIRONMENT"
+echo "[INFO] Deploying $PROJECT_NAME to $ENVIRONMENT"
 
-# Inicializar backend
+# Initialize backend
 ./scripts/init-backend.sh "$PROJECT_NAME" "$ENVIRONMENT"
 
-# Planejar
-echo "[INFO] Gerando plano"
+# Plan
+echo "[INFO] Generating plan"
 terraform plan \
     -var="environment=$ENVIRONMENT" \
     -var="project_name=$PROJECT_NAME" \
     -out=tfplan
 
-# Aplicar
+# Apply
 if [ "$AUTO_APPROVE" = "--auto-approve" ]; then
-    echo "[INFO] Aplicando mudancas (auto-approve)"
+    echo "[INFO] Applying changes (auto-approve)"
     terraform apply -auto-approve tfplan
 else
-    echo "[INFO] Aplicando mudancas"
+    echo "[INFO] Applying changes"
     terraform apply tfplan
 fi
 
 if [ $? -eq 0 ]; then
-    echo "[OK] Deploy concluido"
+    echo "[OK] Deploy completed"
 else
-    echo "[ERROR] Deploy falhou"
+    echo "[ERROR] Deploy failed"
     exit 1
 fi

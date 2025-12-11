@@ -1,5 +1,5 @@
 // vars/terraformModulesValidation.groovy (Jenkins Shared Library)
-// Pipeline para validação e testes dos módulos Terraform no monorepo
+// Pipeline for validation and testing of Terraform modules in monorepo
 
 def call(Map config = [:]) {
     pipeline {

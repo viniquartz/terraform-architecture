@@ -1,5 +1,5 @@
 #!/bin/bash
-# Inicializa backend do Terraform dinamicamente
+# Initialize Terraform backend dynamically
 
 set -e
 
@@ -7,31 +7,31 @@ PROJECT_NAME=${1}
 ENVIRONMENT=${2}
 
 if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ]; then
-    echo "Uso: $0 <project-name> <environment>"
-    echo "Exemplo: $0 my-project prd"
+    echo "Usage: $0 <project-name> <environment>"
+    echo "Example: $0 my-project prd"
     exit 1
 fi
 
-# Validar ambiente
+# Validate environment
 if [[ ! "$ENVIRONMENT" =~ ^(prd|qlt|tst)$ ]]; then
-    echo "Ambiente invalido: $ENVIRONMENT"
-    echo "Use: prd, qlt ou tst"
+    echo "Invalid environment: $ENVIRONMENT"
+    echo "Use: prd, qlt or tst"
     exit 1
 fi
 
-# Configuracoes do backend
+# Backend configuration
 RESOURCE_GROUP="rg-terraform-state"
 STORAGE_ACCOUNT="stterraformstate"
 CONTAINER_NAME="terraform-state-${ENVIRONMENT}"
 STATE_KEY="${PROJECT_NAME}/terraform.tfstate"
 
-echo "[INFO] Inicializando backend"
-echo "  Projeto: $PROJECT_NAME"
-echo "  Ambiente: $ENVIRONMENT"
+echo "[INFO] Initializing backend"
+echo "  Project: $PROJECT_NAME"
+echo "  Environment: $ENVIRONMENT"
 echo "  Container: $CONTAINER_NAME"
 echo "  Key: $STATE_KEY"
 
-# Criar arquivo de configuracao
+# Create configuration file
 cat > backend-config.tfbackend <<EOF
 resource_group_name  = "$RESOURCE_GROUP"
 storage_account_name = "$STORAGE_ACCOUNT"
@@ -39,14 +39,14 @@ container_name       = "$CONTAINER_NAME"
 key                  = "$STATE_KEY"
 EOF
 
-echo "[INFO] Arquivo backend-config.tfbackend criado"
+echo "[INFO] File backend-config.tfbackend created"
 
-# Inicializar Terraform
+# Initialize Terraform
 terraform init -backend-config=backend-config.tfbackend -reconfigure
 
 if [ $? -eq 0 ]; then
-    echo "[OK] Backend inicializado"
+    echo "[OK] Backend initialized"
 else
-    echo "[ERROR] Falha ao inicializar backend"
+    echo "[ERROR] Failed to initialize backend"
     exit 1
 fi

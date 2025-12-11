@@ -1,5 +1,5 @@
-# Jenkins Agent - Terraform Azure (Otimizado)
-# Imagem minimalista: ~600MB
+# Jenkins Agent - Terraform Azure (Optimized)
+# Minimal image: ~300-400MB
 
 FROM alpine:3.19 AS builder
 
@@ -21,14 +21,14 @@ RUN wget -q https://github.com/aquasecurity/tfsec/releases/download/v${TFSEC_VER
     mv tfsec-linux-amd64 tfsec
 
 # ------------------------------------------------------------------------------
-# Imagem Final
+# Final Image
 # ------------------------------------------------------------------------------
 FROM alpine:3.19
 
 LABEL maintainer="platform-team"
 LABEL version="2.0-optimized"
 
-# Instalar apenas o essencial
+# Install essentials only
 RUN apk add --no-cache \
     bash \
     git \
@@ -38,7 +38,7 @@ RUN apk add --no-cache \
     openjdk17-jre-headless && \
     rm -rf /var/cache/apk/*
 
-# Copiar binarios
+# Copy binaries
 COPY --from=builder /tmp/terraform /usr/local/bin/terraform
 COPY --from=builder /tmp/tfsec /usr/local/bin/tfsec
 

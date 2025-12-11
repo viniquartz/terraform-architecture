@@ -1,5 +1,5 @@
 // vars/sendDynatraceEvent.groovy (Jenkins Shared Library)
-// Função para enviar eventos e métricas ao Dynatrace
+// Function to send events and metrics to Dynatrace
 
 def call(Map config = [:]) {
     def dynatraceUrl = env.DYNATRACE_URL ?: credentials('dynatrace-url')

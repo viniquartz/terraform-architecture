@@ -1,34 +1,34 @@
 # Terraform Azure - Setup Guide (Work in Progress)
 
-**Status**: [WIP] Documento de construção do projeto - será convertido em documentação após conclusão
+**Status**: [WIP] Project construction document - will be converted to documentation after completion
 
 ---
 
-## Tracking de Progresso
+## Progress Tracking
 
-### Fase 1: Infraestrutura Base
-- [ ] 1.1 - Azure Backend configurado
-- [ ] 1.2 - Service Principals criados (PRD, QLT, TST)
-- [ ] 1.3 - Resource groups organizados
+### Phase 1: Base Infrastructure
+- [ ] 1.1 - Azure Backend configured
+- [ ] 1.2 - Service Principals created (PRD, QLT, TST)
+- [ ] 1.3 - Resource groups organized
 
-### Fase 2: Repositórios Git
-- [ ] 2.1 - Repositório terraform-azure-project configurado
-- [ ] 2.2 - Repositório terraform-azure-modules criado e versionado
-- [ ] 2.3 - Branch protection configurada
+### Phase 2: Git Repositories
+- [ ] 2.1 - terraform-azure-project repository configured
+- [ ] 2.2 - terraform-azure-modules repository created and versioned
+- [ ] 2.3 - Branch protection configured
 
-### Fase 3: Jenkins
-- [ ] 3.1 - Docker image buildada e testada
-- [ ] 3.2 - Jenkins configurado com Docker agent
-- [ ] 3.3 - Pipelines criadas e testadas
+### Phase 3: Jenkins
+- [ ] 3.1 - Docker image built and tested
+- [ ] 3.2 - Jenkins configured with Docker agent
+- [ ] 3.3 - Pipelines created and tested
 
-### Fase 4: Validação
-- [ ] 4.1 - Primeiro deployment executado
-- [ ] 4.2 - State management funcionando
-- [ ] 4.3 - Pipelines de validação OK
+### Phase 4: Validation
+- [ ] 4.1 - First deployment executed
+- [ ] 4.2 - State management working
+- [ ] 4.3 - Validation pipelines OK
 
 ---
 
-## Arquitetura Final
+## Final Architecture
 
 ```
 ┌─────────────┐      ┌─────────────┐      ┌──────────────┐
@@ -69,48 +69,48 @@ Storage Account: terraformstatestorage
     └── projeto-X/terraform.tfstate
 ```
 
-**Decisão de Design**:
-- **1 container por ambiente** (prd, qlt, tst)
-- **Keys organizados por projeto** dentro de cada container
-- **Cada projeto tem sua própria arquitetura** (power-bi, digital-cabin, projeto-X, etc)
-- **Isolamento claro** entre ambientes
-- **RBAC granular** - SPs diferentes para cada ambiente
-- **Fácil navegação** - todos os projetos de um ambiente juntos
-- **Simplicidade** - estrutura flat, fácil de entender e escalar até 20+ projetos
+**Design Decision**:
+- **1 container per environment** (prd, qlt, tst)
+- **Keys organized by project** within each container
+- **Each project has its own architecture** (power-bi, digital-cabin, projeto-X, etc)
+- **Clear isolation** between environments
+- **Granular RBAC** - Different SPs for each environment
+- **Easy navigation** - all projects from one environment together
+- **Simplicity** - flat structure, easy to understand and scale up to 20+ projects
 
-**Por quê simples?**
-- Menos overhead de gestão
-- Fácil onboarding de novos membros do time
-- Keys curtos e diretos (`power-bi/terraform.tfstate`)
-- Suficiente para maioria dos casos de uso
+**Why simple?**
+- Less management overhead
+- Easy onboarding of new team members
+- Short and direct keys (`power-bi/terraform.tfstate`)
+- Sufficient for most use cases
 
-**Quando evoluir?**
-Se você atingir 20+ projetos ou precisar de governança mais rígida, considere adicionar categorias:
+**When to evolve?**
+If you reach 20+ projects or need stricter governance, consider adding categories:
 ```
 terraform-state-prd/
 ├── apps/power-bi/terraform.tfstate
 ├── infrastructure/networking/terraform.tfstate
 └── data/projeto-X/terraform.tfstate
 ```
-Por enquanto, **YAGNI** (You Aren't Gonna Need It) - mantenha simples!
+For now, **YAGNI** (You Aren't Gonna Need It) - keep it simple!
 
-### 1.1 - Criar Storage Account e Containers
+### 1.1 - Create Storage Account and Containers
 
 ```bash
 # Variables
 LOCATION="westeurope"
 RESOURCE_GROUP="terraform-backend-rg"
-STORAGE_ACCOUNT="terraformstatestorage"  # Deve ser globalmente único
+STORAGE_ACCOUNT="terraformstatestorage"  # Must be globally unique
 
 # 1. Login
 az login
 
-# 2. Criar Resource Group
+# 2. Create Resource Group
 az group create \
   --name $RESOURCE_GROUP \
   --location $LOCATION
 
-# 3. Criar Storage Account
+# 3. Create Storage Account
 az storage account create \
   --name $STORAGE_ACCOUNT \
   --resource-group $RESOURCE_GROUP \
@@ -121,14 +121,14 @@ az storage account create \
   --min-tls-version TLS1_2 \
   --allow-blob-public-access false
 
-# 4. Habilitar Versioning e Soft Delete
+# 4. Enable Versioning and Soft Delete
 az storage account blob-service-properties update \
   --account-name $STORAGE_ACCOUNT \
   --enable-versioning true \
   --enable-delete-retention true \
   --delete-retention-days 14
 
-# 5. Criar Containers
+# 5. Create Containers
 for ENV in prd qlt tst; do
   az storage container create \
     --name terraform-state-$ENV \
@@ -136,34 +136,34 @@ for ENV in prd qlt tst; do
     --auth-mode login
 done
 
-# 6. Verificar
+# 6. Verify
 az storage container list \
   --account-name $STORAGE_ACCOUNT \
   --auth-mode login \
   --output table
 ```
 
-**Checkpoint**: Você deve ver 3 containers criados: `terraform-state-prd`, `terraform-state-qlt`, `terraform-state-tst`
+**Checkpoint**: You should see 3 containers created: `terraform-state-prd`, `terraform-state-qlt`, `terraform-state-tst`
 
 ---
 
-### 1.2 - Criar Service Principals por Ambiente
+### 1.2 - Create Service Principals per Environment
 
-Cada ambiente (PRD, QLT, TST) precisa de seu próprio Service Principal com:
+Each environment (PRD, QLT, TST) needs its own Service Principal with:
 
 ```bash
 # PRD
 az ad sp create-for-rbac --name sp-terraform-prd --role Contributor
-# [IMPORTANTE] SALVAR EM SEGREDO: appId, password, tenant
+# [IMPORTANT] SAVE AS SECRET: appId, password, tenant
 
-### 1.2 - Criar Service Principals
+### 1.2 - Create Service Principals
 
 ```bash
 # Get Subscription ID
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 
-# Service Principal para PRD
-echo "=== Criando SP para PRD ==="
+# Service Principal for PRD
+echo "=== Creating SP for PRD ==="
 az ad sp create-for-rbac \
   --name "sp-terraform-prd" \
   --role Contributor \
@@ -171,10 +171,10 @@ az ad sp create-for-rbac \
   --output json > sp-prd.json
 
 cat sp-prd.json
-#  SALVAR EM SEGREDO: appId, password, tenant
+#  SAVE AS SECRET: appId, password, tenant
 
-# Service Principal para QLT
-echo "=== Criando SP para QLT ==="
+# Service Principal for QLT
+echo "=== Creating SP for QLT ==="
 az ad sp create-for-rbac \
   --name "sp-terraform-qlt" \
   --role Contributor \
@@ -183,8 +183,8 @@ az ad sp create-for-rbac \
 
 cat sp-qlt.json
 
-# Service Principal para TST
-echo "=== Criando SP para TST ==="
+# Service Principal for TST
+echo "=== Creating SP for TST ==="
 az ad sp create-for-rbac \
   --name "sp-terraform-tst" \
   --role Contributor \
@@ -193,11 +193,11 @@ az ad sp create-for-rbac \
 
 cat sp-tst.json
 
-#  DELETAR OS ARQUIVOS JSON APÓS SALVAR AS CREDENCIAIS!
+#  DELETE THE JSON FILES AFTER SAVING THE CREDENTIALS!
 rm sp-*.json
 ```
 
-** Anotar**:
+**Note**:
 ```
 PRD:
   client_id: _______________
@@ -218,10 +218,10 @@ TST:
   subscription_id: _______________
 ```
 
-### 1.3 - Dar Permissões de Storage aos SPs
+### 1.3 - Grant Storage Permissions to SPs
 
 ```bash
-# Para cada Service Principal, dar permissão de acesso ao Storage
+# For each Service Principal, grant storage access permission
 
 # PRD
 SP_PRD_ID=$(az ad sp list --display-name "sp-terraform-prd" --query [0].id -o tsv)
@@ -245,13 +245,13 @@ az role assignment create \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT/blobServices/default/containers/terraform-state-tst"
 ```
 
-** Checkpoint**: Cada SP tem acesso apenas ao seu container específico
+**Checkpoint**: Each SP has access only to its specific container
 
 ---
 
-##  PARTE 2: Docker Image
+## PART 2: Docker Image
 
-### 2.1 - Build da Imagem (Multi-stage otimizada)
+### 2.1 - Build Image (Optimized multi-stage)
 
 ```bash
 cd docker/
@@ -259,13 +259,13 @@ cd docker/
 # Build
 docker build -t jenkins-terraform-agent:1.0 .
 
-# Verificar tamanho
+# Check size
 docker images | grep jenkins-terraform-agent
 
-# Testar
+# Test
 docker run -it --rm jenkins-terraform-agent:1.0 bash
 
-# Dentro do container, testar:
+# Inside container, test:
 git --version
 az version
 terraform version
@@ -276,15 +276,15 @@ python3 --version
 java -version
 ```
 
-**Melhorias implementadas**:
--  **Multi-stage build** - reduz tamanho da imagem final (~30-40%)
--  **--no-install-recommends** - remove pacotes desnecessários
--  **openjdk-17-jre-headless** - JRE ao invés de JDK completo
--  **Layers otimizados** - melhor uso de cache
--  **Validations comentadas** - remover após testar
+**Improvements implemented**:
+- **Multi-stage build** - reduces final image size (~30-40%)
+- **--no-install-recommends** - removes unnecessary packages
+- **openjdk-17-jre-headless** - JRE instead of full JDK
+- **Optimized layers** - better cache usage
+- **Commented validations** - remove after testing
 
-** O que deletar depois**:
-No Dockerfile, após confirmar que tudo funciona, **deletar** o bloco:
+**What to delete later**:
+In the Dockerfile, after confirming everything works, **delete** the block:
 ```dockerfile
 # ==============================================================================
 # VALIDATION SECTION - DELETE AFTER TESTING
@@ -293,60 +293,60 @@ No Dockerfile, após confirmar que tudo funciona, **deletar** o bloco:
 # ==============================================================================
 ```
 
-Isso vai economizar mais espaço (remove echoes e verificações).
+This will save more space (removes echoes and validations).
 
-### 2.2 - Push para Registry
+### 2.2 - Push to Registry
 
 ```bash
-# Opção A: Docker Hub
-docker tag jenkins-terraform-agent:1.0 seu-usuario/jenkins-terraform-agent:1.0
-docker push seu-usuario/jenkins-terraform-agent:1.0
+# Option A: Docker Hub
+docker tag jenkins-terraform-agent:1.0 your-user/jenkins-terraform-agent:1.0
+docker push your-user/jenkins-terraform-agent:1.0
 
-# Opção B: Azure Container Registry
+# Option B: Azure Container Registry
 az acr login --name myregistry
 docker tag jenkins-terraform-agent:1.0 myregistry.azurecr.io/jenkins-terraform-agent:1.0
 docker push <registry>/terraform-agent:1.0.0
 ```
 
-**Checkpoint**: Imagem disponível no registry escolhido
+**Checkpoint**: Image available in chosen registry
 
 ---
 
-## PARTE 3: Repositórios Git
+## PART 3: Git Repositories
 
-# Opção C: GitLab Container Registry
+# Option C: GitLab Container Registry
 docker login registry.gitlab.com
 docker tag jenkins-terraform-agent:1.0 registry.gitlab.com/yourgroup/jenkins-terraform-agent:1.0
 docker push registry.gitlab.com/yourgroup/jenkins-terraform-agent:1.0
 ```
 
-** Checkpoint**: Imagem disponível no registry escolhido
+**Checkpoint**: Image available in chosen registry
 
 ---
 
-## 🔀 PARTE 3: Repositórios Git
+## PART 3: Git Repositories
 
-### Estratégia: 2 Repositórios Separados
+### Strategy: 2 Separate Repositories
 
-**Por quê 2 repos?**
-- Separação de responsabilidades
-- Versionamento independente
-- CI/CD focado
+**Why 2 repos?**
+- Separation of responsibilities
+- Independent versioning
+- Focused CI/CD
 
 #### Repo 1: terraform-azure-project
-- **Propósito**: Documentação, templates, pipelines, scripts
-- **Versionamento**: SEM tags (evolução livre)
-- **Uso**: Referência e setup
+- **Purpose**: Documentation, templates, pipelines, scripts
+- **Versioning**: NO tags (free evolution)
+- **Usage**: Reference and setup
 
 #### Repo 2: terraform-azure-modules
-- **Propósito**: Módulos Terraform versionados
-- **Versionamento**: Semantic Versioning (v1.0.0, v1.1.0, etc)
-- **Uso**: Produção (referenciado em projetos)
+- **Purpose**: Versioned Terraform modules
+- **Versioning**: Semantic Versioning (v1.0.0, v1.1.0, etc)
+- **Usage**: Production (referenced in projects)
 
-### 3.1 - Criar Repositório terraform-azure-project
+### 3.1 - Create terraform-azure-project Repository
 
 ```bash
-# No GitLab, criar repositório vazio: terraform-azure-project
+# In GitLab, create empty repository: terraform-azure-project
 
 # Local
 cd /path/to/terraform-azure-project
@@ -357,25 +357,25 @@ git commit -m "Initial commit: Documentation and templates"
 git push -u origin main
 ```
 
-### 3.2 - Criar Repositório terraform-azure-modules
+### 3.2 - Create terraform-azure-modules Repository
 
 ```bash
-# No GitLab, criar repositório vazio: terraform-azure-modules
+# In GitLab, create empty repository: terraform-azure-modules
 
-# Preparar estrutura
+# Prepare structure
 mkdir terraform-azure-modules
 cd terraform-azure-modules
 
-# Copiar módulos
+# Copy modules
 cp -r ../terraform-azure-project/terraform-modules modules/
 
-# Criar README.md
+# Create README.md
 cat > README.md <<EOF
 # Terraform Azure Modules
 
-Módulos Terraform versionados para Azure.
+Versioned Terraform modules for Azure.
 
-## Uso
+## Usage
 
 \`\`\`hcl
 module "vnet" {
@@ -392,24 +392,24 @@ module "vnet" {
 }
 \`\`\`
 
-## Versões
+## Versions
 
-Ver [CHANGELOG.md](CHANGELOG.md)
+See [CHANGELOG.md](CHANGELOG.md)
 EOF
 
-# Criar CHANGELOG.md
+# Create CHANGELOG.md
 cat > CHANGELOG.md <<EOF
 # Changelog
 
 ## [1.0.0] - $(date +%Y-%m-%d)
 ### Added
 - Initial release
-- Módulos: vnet, subnet, nsg, ssh, vm-linux, nsg-rules
-- Validações completas
-- Documentação com terraform-docs
+- Modules: vnet, subnet, nsg, ssh, vm-linux, nsg-rules
+- Complete validations
+- Documentation with terraform-docs
 EOF
 
-# Commit e tag
+# Commit and tag
 git init
 git add .
 git commit -m "Initial commit: Terraform Azure modules v1.0.0"
@@ -421,30 +421,30 @@ git push -u origin main
 git push origin v1.0.0
 ```
 
-**Checkpoint**: 2 repositórios criados e primeira tag v1.0.0 no modules repo
+**Checkpoint**: 2 repositories created and first tag v1.0.0 in modules repo
 
 ---
 
-## PARTE 4: Jenkins Configuration
+## PART 4: Jenkins Configuration
 ```
 
-** Checkpoint**: 2 repositórios criados e primeira tag v1.0.0 no modules repo
+**Checkpoint**: 2 repositories created and first tag v1.0.0 in modules repo
 
 ---
 
-##  PARTE 4: Jenkins Setup
+## PART 4: Jenkins Setup
 
-### 4.1 - Configurar Credentials no Jenkins
+### 4.1 - Configure Credentials in Jenkins
 
 ```
 Jenkins > Manage Jenkins > Credentials > System > Global credentials
 ```
 
-Criar as seguintes credentials (tipo: Secret text):
+Create the following credentials (type: Secret text):
 
 **PRD**:
-- ID: `azure-sp-prd-client-id` → valor do appId
-- ID: `azure-sp-prd-client-secret` → valor do password
+- ID: `azure-sp-prd-client-id` → appId value
+- ID: `azure-sp-prd-client-secret` → password value
 - ID: `azure-sp-prd-subscription-id` → subscription ID
 - ID: `azure-sp-prd-tenant-id` → tenant ID
 
@@ -460,13 +460,13 @@ Criar as seguintes credentials (tipo: Secret text):
 - ID: `azure-sp-tst-subscription-id`
 - ID: `azure-sp-tst-tenant-id`
 
-**Outros**:
-- ID: `gitlab-token` → Personal Access Token do GitLab
-- ID: `teams-webhook-url` → Webhook URL do Teams
-- ID: `dynatrace-api-token` → API Token do Dynatrace
-- ID: `dynatrace-api-url` → API URL do Dynatrace
+**Others**:
+- ID: `gitlab-token` → GitLab Personal Access Token
+- ID: `teams-webhook-url` → Teams Webhook URL
+- ID: `dynatrace-api-token` → Dynatrace API Token
+- ID: `dynatrace-api-url` → Dynatrace API URL
 
-### 4.2 - Configurar Docker Cloud
+### 4.2 - Configure Docker Cloud
 
 ```
 Jenkins > Manage Jenkins > Clouds > New cloud
@@ -480,14 +480,14 @@ Enabled:
 Docker Agent Template:
   Labels: terraform-azure-agent
   Name: terraform-azure-agent
-  Docker Image: jenkins-terraform-agent:1.0  (ou seu registry)
+  Docker Image: jenkins-terraform-agent:1.0  (or your registry)
   Remote File System Root: /home/jenkins
   Connect method: Attach Docker container
   User: jenkins
   Pull strategy: Pull once and update latest
 ```
 
-### 4.3 - Criar Pipeline de Validação
+### 4.3 - Create Validation Pipeline
 
 ```
 Jenkins > New Item
@@ -502,7 +502,7 @@ Pipeline script from SCM:
   Script Path: pipelines/terraform-validation-pipeline.groovy
 ```
 
-### 4.4 - Criar Pipeline de Deploy
+### 4.4 - Create Deploy Pipeline
 
 ```
 Jenkins > New Item
@@ -522,13 +522,13 @@ Pipeline script from SCM:
   Script Path: pipelines/terraform-deploy-pipeline.groovy
 ```
 
-** Checkpoint**: Jenkins configurado com Docker agent e 2 pipelines
+**Checkpoint**: Jenkins configured with Docker agent and 2 pipelines
 
 ---
 
-## 💻 PARTE 5: Usar o Backend nos Projetos
+## PART 5: Using Backend in Projects
 
-### Configuração nos Projetos Terraform
+### Configuration in Terraform Projects
 
 **providers.tf**:
 ```hcl
@@ -552,12 +552,12 @@ terraform {
 
 provider "azurerm" {
   features {}
-  # Credenciais vem das env vars:
+  # Credentials come from env vars:
   # ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID
 }
 ```
 
-### Usando Módulos Versionados
+### Using Versioned Modules
 
 **main.tf**:
 ```hcl
@@ -571,7 +571,7 @@ module "vnet" {
   
   tags = {
     Environment = var.environment
-    Project     = "power-bi"  # ou digital-cabin, projeto-X, etc
+    Project     = "power-bi"  # or digital-cabin, projeto-X, etc
     ManagedBy   = "Terraform"
   }
 }
@@ -586,10 +586,10 @@ module "subnet" {
 }
 ```
 
-### Deploy Manual (Teste)
+### Manual Deploy (Test)
 
 ```bash
-# Exportar credenciais do ambiente desejado
+# Export credentials for desired environment
 export ARM_CLIENT_ID="..."
 export ARM_CLIENT_SECRET="..."
 export ARM_SUBSCRIPTION_ID="..."
@@ -607,23 +607,23 @@ terraform plan
 terraform apply
 ```
 
-** Checkpoint**: State file criado no Azure Storage
+**Checkpoint**: State file created in Azure Storage
 
 ---
 
-##  PARTE 6: Validação Final
+## PART 6: Final Validation
 
-### 6.1 - Verificar State no Azure
+### 6.1 - Verify State in Azure
 
 ```bash
-# Listar states
+# List states
 az storage blob list \
   --account-name terraformstatestorage \
   --container-name terraform-state-prd \
   --auth-mode login \
   --output table
 
-# Ver conteúdo de um state
+# View state content
 az storage blob download \
   --account-name terraformstatestorage \
   --container-name terraform-state-prd \
@@ -634,42 +634,42 @@ az storage blob download \
 cat /tmp/state.json | jq '.version'
 ```
 
-### 6.2 - Testar State Locking
+### 6.2 - Test State Locking
 
 ```bash
 # Terminal 1
 terraform plan
-# (deixar rodando...)
+# (leave it running...)
 
 # Terminal 2
 terraform plan
-# Deve falhar com: Error acquiring the state lock
+# Should fail with: Error acquiring the state lock
 ```
 
-### 6.3 - Executar Pipeline no Jenkins
+### 6.3 - Run Pipeline in Jenkins
 
 ```
 Jenkins > terraform-deploy > Build with Parameters
 
 ENVIRONMENT: qlt
-PROJECT_NAME: power-bi  # ou digital-cabin, projeto-X
+PROJECT_NAME: power-bi  # or digital-cabin, projeto-X
 ACTION: plan
 
 [Build]
 ```
 
-Verificar:
--  Docker agent inicia
--  Checkout do código
--  Terraform init OK
--  Terraform plan OK
--  Notificação no Teams (se configurado)
+Verify:
+- Docker agent starts
+- Code checkout
+- Terraform init OK
+- Terraform plan OK
+- Teams notification (if configured)
 
-**Nota**: Cada projeto (power-bi, digital-cabin, projeto-X) tem sua própria arquitetura Terraform específica
+**Note**: Each project (power-bi, digital-cabin, projeto-X) has its own specific Terraform architecture
 
 ---
 
-##  Referências Rápidas
+## Quick References
 
 ### Backend Config por Ambiente
 
@@ -684,71 +684,71 @@ container_name = "terraform-state-qlt"
 container_name = "terraform-state-tst"
 ```
 
-### Versionamento de Módulos
+### Module Versioning
 
 ```hcl
-# Usar versão específica
+# Use specific version
 ?ref=v1.0.0
 
-# Atualizar versão
+# Update version
 ?ref=v1.1.0
 ```
 
-### Comandos Úteis
+### Useful Commands
 
 ```bash
-# Ver versões de módulos
+# View module versions
 git ls-remote --tags git@gitlab.com:yourgroup/terraform-azure-modules.git
 
-# State locking force unlock (CUIDADO!)
+# State locking force unlock (CAREFUL!)
 terraform force-unlock LOCK_ID
 
-# Download de state
+# Download state
 terraform state pull > backup.tfstate
 
-# Upload de state
+# Upload state
 terraform state push backup.tfstate
 
-# Ver recursos no state
+# View resources in state
 terraform state list
 
-# Ver detalhes de recurso
+# View resource details
 terraform state show azurerm_virtual_network.this
 ```
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
-### Problema: Docker image muito grande
+### Problem: Docker image too large
 
-**Solução**: Após validar funcionamento, deletar seção VALIDATION do Dockerfile e rebuild:
+**Solution**: After validating it works, delete VALIDATION section from Dockerfile and rebuild:
 ```bash
-# Remover linhas 112-122 do Dockerfile (seção de verificação)
+# Remove lines 112-122 from Dockerfile (verification section)
 docker build -t jenkins-terraform-agent:1.0 .
 ```
 
-### Problema: State lock não liberando
+### Problem: State lock not releasing
 
-**Solução**:
+**Solution**:
 ```bash
-# Aguardar 15 segundos (lock expira automaticamente)
+# Wait 15 seconds (lock expires automatically)
 sleep 20
 
-# Ou force unlock (só se tiver certeza!)
+# Or force unlock (only if you're sure!)
 terraform force-unlock LOCK_ID
 ```
 
-### Problema: Permissão negada no Storage
+### Problem: Permission denied on Storage
 
-**Solução**:
+**Solution**:
 ```bash
-# Verificar permissões do SP
+# Check SP permissions
 az role assignment list \
   --assignee $ARM_CLIENT_ID \
   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/terraform-backend-rg"
 
-# Adicionar permissão se necessário
+# Add permission if needed
 az role assignment create \
   --assignee $ARM_CLIENT_ID \
   --role "Storage Blob Data Contributor" \
@@ -757,49 +757,49 @@ az role assignment create \
 
 ---
 
-##  Checklist Final
+## Final Checklist
 
-Antes de considerar completo:
+Before considering complete:
 
 **Azure**:
-- [ ] Storage Account criado
-- [ ] 3 containers criados (prd, qlt, tst)
-- [ ] 3 Service Principals criados
-- [ ] Permissões RBAC configuradas
-- [ ] Versioning habilitado
-- [ ] Soft delete habilitado
+- [ ] Storage Account created
+- [ ] 3 containers created (prd, qlt, tst)
+- [ ] 3 Service Principals created
+- [ ] RBAC permissions configured
+- [ ] Versioning enabled
+- [ ] Soft delete enabled
 
 **Git**:
-- [ ] terraform-azure-project criado
-- [ ] terraform-azure-modules criado
-- [ ] Tag v1.0.0 criada
-- [ ] Branch protection configurada
+- [ ] terraform-azure-project created
+- [ ] terraform-azure-modules created
+- [ ] Tag v1.0.0 created
+- [ ] Branch protection configured
 
 **Jenkins**:
-- [ ] Docker image buildada
-- [ ] 12+ credentials cadastradas
-- [ ] Docker cloud configurado
-- [ ] 2 pipelines criadas
+- [ ] Docker image built
+- [ ] 12+ credentials registered
+- [ ] Docker cloud configured
+- [ ] 2 pipelines created
 
-**Validação**:
-- [ ] Deploy manual funcionou
+**Validation**:
+- [ ] Manual deploy worked
 - [ ] State no Azure Storage
 - [ ] State locking OK
-- [ ] Pipeline Jenkins OK
+- [ ] Jenkins pipeline OK
 
 ---
 
-##  Notas Finais
+## Final Notes
 
-**Docker Compose**: Removido - não necessário. Foi usado apenas para teste local inicial. Use `docker run` diretamente ou Jenkins.
+**Docker Compose**: Removed - not necessary. Was only used for initial local testing. Use `docker run` directly or Jenkins.
 
-**Multi-stage**: Implementado - reduz imagem de ~1.2GB para ~800MB.
+**Multi-stage**: Implemented - reduces image from ~1.2GB to ~800MB.
 
-**Backend**: 1 container por ambiente (prd/qlt/tst) com projetos dentro como keys.
+**Backend**: 1 container per environment (prd/qlt/tst) with projects inside as keys.
 
-**Documentação**: Este documento será convertido em docs finais após conclusão e validação completa do setup.
+**Documentation**: This document will be converted to final docs after completion and full setup validation.
 
 ---
 
-**Última atualização**: 2025-12-04
-**Status**:  Em construção
+**Last update**: 2025-12-04
+**Status**: Under construction

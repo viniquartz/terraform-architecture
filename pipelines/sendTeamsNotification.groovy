@@ -1,5 +1,5 @@
 // vars/sendTeamsNotification.groovy (Jenkins Shared Library)
-// Função para enviar notificações ao Microsoft Teams
+// Function to send notifications to Microsoft Teams
 
 def call(Map config = [:]) {
     def webhookUrl = env.TEAMS_WEBHOOK_URL ?: credentials('teams-webhook-url')
