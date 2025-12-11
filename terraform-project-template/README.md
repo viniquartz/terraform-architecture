@@ -1,128 +1,128 @@
 # Terraform Project Template
 
-Template para projetos Terraform com backend dinamico no Azure.
+Template for Terraform projects with dynamic backend on Azure.
 
-## O Que Tem Aqui
+## What's Included
 
 ```
 terraform-project-template/
-├── backend.tf          # Backend vazio (dinamico)
-├── providers.tf        # Provider Azure
-├── variables.tf        # Variaveis padrao
-├── main.tf             # Exemplo: Resource Group
-├── outputs.tf          # Outputs basicos
+├── backend.tf          # Empty backend (dynamic)
+├── providers.tf        # Azure provider
+├── variables.tf        # Standard variables
+├── main.tf             # Example: Resource Group
+├── outputs.tf          # Basic outputs
 ├── scripts/
-│   ├── init-backend.sh # Inicializa backend
-│   └── deploy.sh       # Deploy completo
-└── .gitignore          # Arquivos a ignorar
+│   ├── init-backend.sh # Initialize backend
+│   └── deploy.sh       # Complete deploy
+└── .gitignore          # Files to ignore
 ```
 
-## Como Usar para POC
+## How to Use for POC
 
-### 1. Copiar Template
+### 1. Copy Template
 
 ```bash
-# Copiar para seu projeto
+# Copy to your project
 cp -r terraform-project-template ../my-project
 cd ../my-project
 ```
 
-### 2. Configurar Credenciais Azure
+### 2. Configure Azure Credentials
 
 ```bash
-# Exportar credenciais do Service Principal
-export ARM_CLIENT_ID="seu-client-id"
-export ARM_CLIENT_SECRET="seu-client-secret"
-export ARM_TENANT_ID="seu-tenant-id"
-export ARM_SUBSCRIPTION_ID="seu-subscription-id"
+# Export Service Principal credentials
+export ARM_CLIENT_ID="your-client-id"
+export ARM_CLIENT_SECRET="your-client-secret"
+export ARM_TENANT_ID="your-tenant-id"
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
 ```
 
 ### 3. Deploy
 
 ```bash
-# Dar permissao aos scripts
+# Grant permissions to scripts
 chmod +x scripts/*.sh
 
-# Deploy em TST
+# Deploy to TST
 ./scripts/deploy.sh my-project tst
 
-# Deploy em PRD
+# Deploy to PRD
 ./scripts/deploy.sh my-project prd
 ```
 
-## O Que Deve Alterar
+## What to Change
 
 ### 1. main.tf
-Adicione seus recursos Azure aqui. O exemplo tem apenas Resource Group.
+Add your Azure resources here. The example only has Resource Group.
 
 ### 2. variables.tf
-Adicione variaveis especificas do seu projeto.
+Add project-specific variables.
 
 ### 3. outputs.tf
-Adicione outputs que voce precisa expor.
+Add outputs you need to expose.
 
 ### 4. backend.tf
-NAO ALTERE. Ele é configurado automaticamente pelos scripts.
+DO NOT CHANGE. It's configured automatically by scripts.
 
 ## Backend Storage
 
-O estado será salvo em:
+State will be saved to:
 - **Storage Account**: stterraformstate
 - **Resource Group**: rg-terraform-state
 - **Container**: terraform-state-{environment}
 - **Key**: {project-name}/terraform.tfstate
 
-Exemplo:
+Example:
 - TST: terraform-state-tst/my-project/terraform.tfstate
 - PRD: terraform-state-prd/my-project/terraform.tfstate
 
-## Comandos Uteis
+## Useful Commands
 
 ```bash
-# Ver outputs
+# View outputs
 terraform output
 
-# Ver recursos no state
+# View resources in state
 terraform state list
 
-# Formatar codigo
+# Format code
 terraform fmt -recursive
 
-# Validar
+# Validate
 terraform validate
 
-# Destruir (cuidado!)
+# Destroy (careful!)
 terraform destroy -var="environment=tst" -var="project_name=my-project"
 ```
 
 ## Troubleshooting
 
-### Erro: Backend nao inicializado
+### Error: Backend not initialized
 ```bash
 ./scripts/init-backend.sh my-project tst
 ```
 
-### Erro: Credenciais invalidas
+### Error: Invalid credentials
 ```bash
-# Verificar se esta logado
+# Check if logged in
 az account show
 
-# Ou usar credenciais via variaveis
+# Or use credentials via variables
 export ARM_CLIENT_ID=...
 ```
 
-### Erro: Container nao existe
-Execute o script de setup primeiro:
+### Error: Container does not exist
+Run setup script first:
 ```bash
 ../../scripts/setup/configure-azure-backend.sh
 ```
 
-## Estrutura de Arquivos
+## File Structure
 
-- **backend.tf**: Backend dinamico (vazio)
-- **providers.tf**: Provider Azure versao ~> 3.0
+- **backend.tf**: Dynamic backend (empty)
+- **providers.tf**: Azure provider version ~> 3.0
 - **variables.tf**: environment, project_name, location
-- **main.tf**: Seus recursos (comece com Resource Group)
-- **outputs.tf**: Valores a expor
-- **scripts/init-backend.sh**: Inicializa backend dinamicamente
-- **scripts/deploy.sh**: Deploy completo (init + plan + apply)
+- **main.tf**: Your resources (start with Resource Group)
+- **outputs.tf**: Values to expose
+- **scripts/init-backend.sh**: Initialize backend dynamically
+- **scripts/deploy.sh**: Complete deploy (init + plan + apply)

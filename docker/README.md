@@ -1,65 +1,45 @@
 # Jenkins Agent Docker Image
 
-Imagem otimizada para Jenkins com Terraform e Azure CLI.
+Optimized Jenkins image with Terraform and essential tools.
 
-## Versoes Disponiveis
+## Available Versions
 
-### Versao Otimizada (Recomendada) - ~600MB
+### Optimized Version (Recommended) - ~300-400MB
 ```bash
 docker build -t jenkins-terraform:optimized .
 ```
 
-Inclui:
+Includes:
 - Terraform 1.5.7
-- Azure CLI (minimo)
 - TFSec 1.28.4
-- Git, jq, curl
+- Git, curl
 - Java 17 JRE
-- Python 3
-
-### Versao Minima - ~400MB
-```bash
-docker build -f Dockerfile.alternatives --target minimal .
-```
-
-Inclui apenas:
-- Terraform
-- Azure CLI basico
-- Git, Java
-
-### Versao Ultra-Leve - ~100MB
-```bash
-docker build -f Dockerfile.alternatives --target ultra-light .
-```
-
-Inclui apenas:
-- Terraform
-- Git, Java
+- Bash
 
 ## Build
 
 ```bash
-# Versao otimizada (recomendada)
+# Optimized version (recommended)
 docker build -t jenkins-terraform:latest .
 
-# Ver tamanho
+# View size
 docker images jenkins-terraform:latest
 ```
 
-## Uso
+## Usage
 
 ```bash
-# Testar localmente
+# Test locally
 docker run -it jenkins-terraform:latest bash
 
-# Verificar ferramentas
+# Verify tools
 docker run jenkins-terraform:latest terraform version
-docker run jenkins-terraform:latest az version
+docker run jenkins-terraform:latest tfsec --version
 ```
 
-## No Jenkins
+## Jenkins Configuration
 
-Configurar no Jenkins (Manage Jenkins > Clouds):
+Configure in Jenkins (Manage Jenkins > Clouds):
 
 ```groovy
 dockerTemplate {
@@ -68,21 +48,21 @@ dockerTemplate {
 }
 ```
 
-## Reducao de Tamanho
+## Size Reduction
 
-De 2GB para 600MB:
+From 2GB to 300-400MB:
 - Base Ubuntu -> Alpine Linux
-- Removido Checkov (raramente usado)
-- Removido terraform-docs (opcional)
-- Azure CLI minimo (nao completo)
-- Python minimo
+- Removed Checkov (rarely used)
+- Removed terraform-docs (optional)
+- Removed Azure CLI (use provider auth)
+- Removed Python dependencies
 
-## Customizar
+## Customization
 
-Editar Dockerfile para:
-- Adicionar/remover ferramentas
-- Ajustar versoes
-- Modificar usuario Jenkins
+Edit Dockerfile to:
+- Add/remove tools
+- Adjust versions
+- Modify Jenkins user
 
 ##  Quick Start
 

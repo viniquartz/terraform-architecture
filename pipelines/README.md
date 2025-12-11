@@ -1,67 +1,67 @@
-# Pipelines Terraform - Guia Rápido
+# Terraform Pipelines - Quick Guide
 
-Este diretório contém todas as pipelines Jenkins (Shared Library) para gerenciamento da infraestrutura Terraform.
+This directory contains all Jenkins pipelines (Shared Library) for Terraform infrastructure management.
 
-## 📋 Pipelines Disponíveis
+## Available Pipelines
 
 ### 1. terraform-deploy-pipeline.groovy
-**Pipeline principal para deploy e destroy de recursos**
+**Main pipeline for resource deployment and destroy**
 
-- **Parâmetros:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH
-- **Aprovações:** DevOps Team (todos) + Security Team (prod)
-- **Integrações:** Teams + Dynatrace
-- **Uso:** Deploy/destroy de projetos individuais
+- **Parameters:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH
+- **Approvals:** DevOps Team (all) + Security Team (prod)
+- **Integrations:** Teams + Dynatrace
+- **Usage:** Deploy/destroy individual projects
 
 ### 2. terraform-validation-pipeline.groovy
-**Validação automática em Pull/Merge Requests**
+**Automatic validation on Pull/Merge Requests**
 
-- **Trigger:** Automático em MRs
-- **Validação:** Paralela em todos os ambientes
-- **Integrações:** GitLab (status + comentários)
-- **Uso:** Quality gate para MRs
+- **Trigger:** Automatic on MRs
+- **Validation:** Parallel across all environments
+- **Integrations:** GitLab (status + comments)
+- **Usage:** Quality gate for MRs
 
 ### 3. terraform-drift-detection-pipeline.groovy
-**Detecção agendada de drift**
+**Scheduled drift detection**
 
-- **Trigger:** Cron (a cada 4 horas)
-- **Escopo:** Todos os projetos e ambientes
-- **Integrações:** Teams + Dynatrace (apenas quando drift)
-- **Uso:** Monitoramento contínuo
+- **Trigger:** Cron (every 4 hours)
+- **Scope:** All projects and environments
+- **Integrations:** Teams + Dynatrace (only when drift)
+- **Usage:** Continuous monitoring
 
 ### 4. terraform-modules-validation-pipeline.groovy
-**Validação de módulos do monorepo**
+**Monorepo module validation**
 
-- **Trigger:** Push e MRs no repo de módulos
-- **Validação:** Formato, sintaxe, security, testes
-- **Quality Gates:** README obrigatório, testes recomendados
-- **Uso:** Quality gate para módulos
+- **Trigger:** Push and MRs on modules repo
+- **Validation:** Format, syntax, security, tests
+- **Quality Gates:** README required, tests recommended
+- **Usage:** Quality gate for modules
 
-## 🔧 Funções Auxiliares
+## Helper Functions
 
 ### sendTeamsNotification.groovy
-Envia notificações formatadas ao Microsoft Teams.
+Sends formatted notifications to Microsoft Teams.
 
-**Parâmetros:**
+**Parameters:**
 - `status`: STARTED | SUCCESS | FAILURE | PENDING_APPROVAL | DRIFT_DETECTED
-- `projectName`: Nome do projeto
-- `environment`: Ambiente alvo
-- `action`: Ação sendo executada
-- `buildUrl`: Link para o build Jenkins
+- `projectName`: Project name
+- `environment`: Target environment
+- `action`: Action being executed
+- `buildUrl`: Link to Jenkins build
 
 ### sendDynatraceEvent.groovy
-Envia eventos e métricas ao Dynatrace.
+Sends events and metrics to Dynatrace.
 
-**Métricas enviadas:**
-- `terraform.pipeline.duration`: Duração da pipeline
+**Metrics sent:**
+- `terraform.pipeline.duration`: Pipeline duration
 - `terraform.pipeline.status`: Status (1=success, 0=failure)
-- `terraform.drift.detected`: Drift detectado
+- `terraform.drift.detected`: Drift detected
 
-##  Instalação no Jenkins
+## Jenkins Installation
 
-### 1. Criar Jenkins Shared Library
+### 1. Create Jenkins Shared Library
 
 ```groovy
-// No Jenkins: Manage Jenkins → Configure System → Global Pipeline Libraries
+// In Jenkins: Manage Jenkins → Configure System → Global Pipeline Libraries
 
 Name: terraform-pipelines
 Default version: main
@@ -69,7 +69,7 @@ Project repository: https://gitlab.com/org/jenkins-shared-library.git
 Credentials: gitlab-credentials
 ```
 
-### 2. Estrutura do Repositório Shared Library
+### 2. Shared Library Repository Structure
 
 ```
 jenkins-shared-library/
@@ -83,7 +83,7 @@ jenkins-shared-library/
 └── README.md
 ```
 
-### 3. Configurar Credentials no Jenkins
+### 3. Configure Credentials in Jenkins
 
 ```
 Manage Jenkins → Credentials → Add Credentials
@@ -98,9 +98,9 @@ Manage Jenkins → Credentials → Add Credentials
 - dynatrace-api-token: Dynatrace API token
 ```
 
-### 4. Criar Jobs no Jenkins
+### 4. Create Jenkins Jobs
 
-#### Job 1: Terraform Deploy (Parametrizado)
+#### Job 1: Terraform Deploy (Parameterized)
 
 ```groovy
 @Library('terraform-pipelines') _
@@ -132,12 +132,12 @@ terraformDriftDetection()
 terraformModulesValidation()
 ```
 
-## Segurança
+## Security
 
-### Permissões de Aprovação
+### Approval Permissions
 
 ```groovy
-// Configure no Jenkins: Manage Jenkins → Configure Global Security
+// Configure in Jenkins: Manage Jenkins → Configure Global Security
 
 Role-Based Authorization:
 
@@ -150,57 +150,57 @@ security-team:
   - permissions: ['Job.Build', 'Job.Cancel', 'Job.Read']
 ```
 
-## Monitoramento
+## Monitoring
 
-### Dashboards Dynatrace
+### Dynatrace Dashboards
 
-Métricas disponíveis para dashboard:
-- `terraform.pipeline.duration` por projeto/ambiente
-- `terraform.pipeline.status` taxa de sucesso
-- `terraform.drift.detected` eventos de drift
-- `terraform.resources.count` recursos gerenciados
+Metrics available for dashboard:
+- `terraform.pipeline.duration` per project/environment
+- `terraform.pipeline.status` success rate
+- `terraform.drift.detected` drift events
+- `terraform.resources.count` managed resources
 
-### Notificações Teams
+### Teams Notifications
 
-Eventos notificados:
-- Início de deploy
-- Aprovações pendentes
-- Deploy concluído (sucesso/falha)
-- Drift detectado
-- Falhas de validação
+Notified events:
+- Deploy started
+- Pending approvals
+- Deploy completed (success/failure)
+- Drift detected
+- Validation failures
 
-##  Exemplo de Uso
+## Usage Example
 
-### Deploy de um Projeto
+### Deploy a Project
 
-1. Acesse o job "Terraform Deploy"
-2. Clique em "Build with Parameters"
-3. Preencha:
+1. Access "Terraform Deploy" job
+2. Click "Build with Parameters"
+3. Fill in:
    - PROJECT_NAME: `project-a`
    - ENVIRONMENT: `production`
    - ACTION: `apply`
    - GIT_BRANCH: `main`
-4. Clique em "Build"
-5. Aguarde aprovação do DevOps Team
-6. Aguarde aprovação do Security Team (prod)
-7. Deploy será executado
+4. Click "Build"
+5. Wait for DevOps Team approval
+6. Wait for Security Team approval (prod)
+7. Deploy will execute
 
-### Validar um Módulo
+### Validate a Module
 
-1. Faça checkout do branch
-2. Faça mudanças no módulo
-3. Commit e push
-4. Crie Merge Request
-5. Pipeline de validação executa automaticamente
-6. Resultado aparece como status no MR
+1. Checkout branch
+2. Make changes to module
+3. Commit and push
+4. Create Merge Request
+5. Validation pipeline executes automatically
+6. Result appears as status on MR
 
-## Documentação Adicional
+## Additional Documentation
 
-- [Setup Guide Completo](../docs/SETUP-TRACKING.md)
-- [Documentação de Módulos](../terraform-modules/README.md)
+- [Complete Setup Guide](../docs/SETUP-TRACKING.md)
+- [Backend Administration](../docs/BACKEND-ADMIN.md)
 - [Docker README](../docker/README.md)
 
 ---
 
-**Última atualização:** 30 de Novembro de 2025  
-**Mantido por:** DevOps Team
+**Last Updated:** December 2025  
+**Maintained By:** DevOps Team
