@@ -1,17 +1,13 @@
 .
-├── README.md
 ├── docker
 │   ├── Dockerfile
-│   ├── README.md
-│   ├── docker-compose.yml
-│   └── env.example
+│   └── README.md
 ├── docs
-│   ├── BACKEND-CONFIG.md
+│   ├── BACKEND.md
 │   ├── FILE-STRUCTURE.txt
-│   ├── POC-SETUP-GUIDE.md
 │   ├── README.md
-│   ├── REPOSITORY-STRATEGY.md
-│   └── SUMMARY.md
+│   ├── SETUP-TRACKING.md
+│   └── SETUP.md
 ├── pipelines
 │   ├── README.md
 │   ├── sendDynatraceEvent.groovy
@@ -26,58 +22,16 @@
 │   └── setup
 │       ├── configure-azure-backend.sh
 │       └── create-service-principals.sh
-├── template
+├── terraform-project-template
+│   ├── scripts
+│   │   ├── deploy.sh
+│   │   └── init-backend.sh
 │   ├── README.md
-│   ├── environments
-│   │   ├── non-prd
-│   │   └── prd
+│   ├── backend.tf
 │   ├── main.tf
 │   ├── outputs.tf
 │   ├── providers.tf
 │   └── variables.tf
-└── terraform-modules
-    ├── README.md
-    ├── nsg
-    │   ├── README.md
-    │   ├── examples
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   ├── variables.tf
-    │   └── versions.tf
-    ├── nsg-rules
-    │   ├── README.md
-    │   ├── examples
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   ├── variables.tf
-    │   └── versions.tf
-    ├── ssh
-    │   ├── README.md
-    │   ├── examples
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   ├── variables.tf
-    │   └── versions.tf
-    ├── subnet
-    │   ├── README.md
-    │   ├── examples
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   ├── variables.tf
-    │   └── versions.tf
-    ├── vm-linux
-    │   ├── README.md
-    │   ├── examples
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   ├── variables.tf
-    │   └── versions.tf
-    └── vnet
-        ├── README.md
-        ├── examples
-        ├── main.tf
-        ├── outputs.tf
-        ├── variables.tf
-        └── versions.tf
+└── README.md
 
-24 directories, 57 files
+9 directories, 26 files
