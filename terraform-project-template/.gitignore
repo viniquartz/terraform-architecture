@@ -6,11 +6,11 @@
 *.tfplan
 tfplan
 
-# Backend config (gerado dinamicamente)
+# Backend config (dynamically generated)
 *.tfbackend
 backend-config*.tfbackend
 
-# Variaveis sensíveis
+# Sensitive variables
 .env
 *.auto.tfvars
 

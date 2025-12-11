@@ -1,25 +1,25 @@
 variable "environment" {
-  description = "Ambiente: prd, qlt ou tst"
+  description = "Environment: prd, qlt or tst"
   type        = string
 
   validation {
     condition     = contains(["prd", "qlt", "tst"], var.environment)
-    error_message = "Ambiente deve ser: prd, qlt ou tst"
+    error_message = "Environment must be: prd, qlt or tst"
   }
 }
 
 variable "project_name" {
-  description = "Nome do projeto (minusculas, numeros e hifens)"
+  description = "Project name (lowercase, numbers and hyphens)"
   type        = string
 
   validation {
     condition     = can(regex("^[a-z0-9-]+$", var.project_name))
-    error_message = "Nome deve conter apenas: a-z, 0-9 e -"
+    error_message = "Name must contain only: a-z, 0-9 and -"
   }
 }
 
 variable "location" {
-  description = "Regiao Azure"
+  description = "Azure region"
   type        = string
   default     = "brazilsouth"
 }

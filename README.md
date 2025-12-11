@@ -44,7 +44,7 @@ terraform apply
 
 ## Components
 
-**Docker Agent**: Optimized Alpine image (~600MB) with Terraform, TFSec, Azure CLI, Git, Java 17
+**Docker Agent**: Optimized Alpine image (~300-400MB) with Terraform, TFSec, Git, Java 17
 
 **Pipelines**: Deploy, validation, drift detection with security scanning
 
@@ -60,9 +60,7 @@ terraform apply
 
 ## Documentation
 
-- [Architecture Plan](docs/architecture-plan.md)
-- [Backend Strategy](docs/BACKEND-STRATEGY.md)
-- [Backend Administration](docs/BACKEND-ADMIN.md)
-- [Isolated Projects Guide](docs/PROJECTS-ISOLATED.md)
+- [Setup Guide](docs/SETUP.md)
+- [Backend Administration](docs/BACKEND.md)
 - [Docker Setup](docker/README.md)
 - [Pipelines](pipelines/README.md)
