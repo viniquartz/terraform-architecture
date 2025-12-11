@@ -1,27 +1,19 @@
 #!/bin/bash
-# Script para criar Service Principals para uso do Terraform
+# Script para criar Service Principals para Terraform
 
 set -e
 
-# Cores para output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_info() { echo "[INFO] $1"; }
+log_error() { echo "[ERROR] $1"; exit 1; }
+log_warning() { echo "[WARNING] $1"; }
 
 # Verificações
 if ! command -v az &> /dev/null; then
     log_error "Azure CLI nao instalado"
-    exit 1
 fi
 
 if ! az account show &> /dev/null; then
     log_error "Execute: az login"
-    exit 1
 fi
 
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
@@ -78,51 +70,34 @@ EOF
     log_info "Credenciais salvas em: .credentials/${ENV}-sp.json"
     
     # Aguardar propagação
-    log_info "Aguardando propagação (30s)..."
-    sleep 30
+    log_info "Aguardando propagacao (10s)"
+    sleep 10
     
-    # Adicionar roles adicionais para production
-    if [ "$ENV" = "production" ]; then
-        log_info "Adicionando roles adicionais para production..."
-        
-        az role assignment create \
-            --assignee "$APP_ID" \
-            --role "Key Vault Administrator" \
-            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode ja existir"
-        
-        az role assignment create \
-            --assignee "$APP_ID" \
-            --role "Storage Account Contributor" \
-            --scope "/subscriptions/$SUBSCRIPTION_ID" || log_warning "Role pode ja existir"
-    fi
-    
-    log_info "[OK] $SP_NAME configurado\n"
+    log_info "$SP_NAME configurado"
+    echo ""
 done
 
-# Criar arquivo para Jenkins credentials
-log_info "Gerando script para Jenkins..."
+# Criar arquivo para Jenkins
+log_info "Gerando arquivo de credenciais"
 
 cat > ".credentials/jenkins-credentials.txt" <<'EOF'
-# CREDENCIAIS PARA JENKINS
-# Adicione estas credenciais usando o Jenkins Credentials Plugin
+CREDENCIAIS PARA JENKINS
+
+Adicione no Jenkins Credentials Plugin:
 
 Para cada ambiente (prd, qlt, tst):
+  1. Username with password
+     ID: azure-sp-{environment}
+     Username: {client_id}
+     Password: {client_secret}
 
-1. Tipo: Username with password
-   ID: azure-sp-{environment}
-   Username: {client_id}
-   Password: {client_secret}
-   Description: Azure Service Principal for {environment}
+  2. Secret text
+     ID: azure-tenant-id
+     Secret: {tenant_id}
 
-2. Tipo: Secret text
-   ID: azure-tenant-id
-   Secret: {tenant_id}
-   Description: Azure Tenant ID
-
-3. Tipo: Secret text
-   ID: azure-subscription-id
-   Secret: {subscription_id}
-   Description: Azure Subscription ID
+  3. Secret text
+     ID: azure-subscription-id
+     Secret: {subscription_id}
 
 Valores:
 EOF
@@ -138,21 +113,20 @@ done
 
 log_info ""
 log_info "=========================================="
-log_info "[OK] TODOS OS SERVICE PRINCIPALS CRIADOS"
+log_info "Service Principals criados"
 log_info "=========================================="
 log_info ""
-log_info "Arquivos gerados em .credentials/:"
+log_info "Arquivos em .credentials/:"
 log_info "  - prd-sp.json"
 log_info "  - qlt-sp.json"
 log_info "  - tst-sp.json"
 log_info "  - jenkins-credentials.txt"
 log_info ""
-log_info "[IMPORTANTE]:"
-log_info "1. Adicione as credenciais no Jenkins (ver jenkins-credentials.txt)"
-log_info "2. NAO comite os arquivos .credentials/ no Git"
-log_info "3. Guarde as credenciais em local seguro (ex: Azure Key Vault)"
-log_info "4. Adicione .credentials/ no .gitignore"
+log_info "IMPORTANTE:"
+log_info "  1. Adicione credenciais no Jenkins"
+log_info "  2. NAO comite .credentials/ no Git"
+log_info "  3. Guarde em local seguro"
 log_info ""
-log_info "Para testar o Service Principal:"
+log_info "Para testar:"
 log_info "  az login --service-principal -u <APP_ID> -p <PASSWORD> --tenant <TENANT_ID>"
-log_info ""
+log_info "=========================================="

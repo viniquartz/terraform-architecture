@@ -1,21 +1,88 @@
-# Jenkins Terraform Agent - Docker Image
+# Jenkins Agent Docker Image
 
-Multi-stage optimized Docker image for Jenkins agents with complete Terraform tooling for Azure.
+Imagem otimizada para Jenkins com Terraform e Azure CLI.
 
-##  What's Included
+## Versoes Disponiveis
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| **Terraform** | 1.5.7 | Infrastructure provisioning |
-| **Azure CLI** | Latest | Azure authentication & management |
-| **TFSec** | 1.28.4 | Security scanning |
-| **Checkov** | Latest | Compliance checking |
-| **terraform-docs** | 0.17.0 | Documentation generation |
-| **Git** | Latest | Version control |
-| **Java 17 JRE** | Headless | Jenkins agent runtime |
-| **Python 3** | + Azure libs | Scripting & Azure SDK |
+### Versao Otimizada (Recomendada) - ~600MB
+```bash
+docker build -t jenkins-terraform:optimized .
+```
 
-**Image Size**: ~800MB (optimized with multi-stage build)
+Inclui:
+- Terraform 1.5.7
+- Azure CLI (minimo)
+- TFSec 1.28.4
+- Git, jq, curl
+- Java 17 JRE
+- Python 3
+
+### Versao Minima - ~400MB
+```bash
+docker build -f Dockerfile.alternatives --target minimal .
+```
+
+Inclui apenas:
+- Terraform
+- Azure CLI basico
+- Git, Java
+
+### Versao Ultra-Leve - ~100MB
+```bash
+docker build -f Dockerfile.alternatives --target ultra-light .
+```
+
+Inclui apenas:
+- Terraform
+- Git, Java
+
+## Build
+
+```bash
+# Versao otimizada (recomendada)
+docker build -t jenkins-terraform:latest .
+
+# Ver tamanho
+docker images jenkins-terraform:latest
+```
+
+## Uso
+
+```bash
+# Testar localmente
+docker run -it jenkins-terraform:latest bash
+
+# Verificar ferramentas
+docker run jenkins-terraform:latest terraform version
+docker run jenkins-terraform:latest az version
+```
+
+## No Jenkins
+
+Configurar no Jenkins (Manage Jenkins > Clouds):
+
+```groovy
+dockerTemplate {
+    image 'jenkins-terraform:latest'
+    label 'terraform-agent'
+}
+```
+
+## Reducao de Tamanho
+
+De 2GB para 600MB:
+- Base Ubuntu -> Alpine Linux
+- Removido Checkov (raramente usado)
+- Removido terraform-docs (opcional)
+- Azure CLI minimo (nao completo)
+- Python minimo
+
+## Customizar
+
+Editar Dockerfile para:
+- Adicionar/remover ferramentas
+- Ajustar versoes
+- Modificar usuario Jenkins
 
 ##  Quick Start
 

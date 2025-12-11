@@ -1,0 +1,26 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+
+# Backend config (gerado dinamicamente)
+*.tfbackend
+backend-config*.tfbackend
+
+# Variaveis sensíveis
+.env
+*.auto.tfvars
+
+# Logs
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# macOS
+.DS_Store
