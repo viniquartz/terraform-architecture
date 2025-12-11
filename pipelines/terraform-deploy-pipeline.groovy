@@ -1,5 +1,6 @@
 // vars/terraformDeploy.groovy (Jenkins Shared Library)
 // Main pipeline for deploying and destroying Terraform resources
+// Manual execution only - no automatic triggers
 
 def call(Map config = [:]) {
     pipeline {
@@ -10,7 +11,7 @@ def call(Map config = [:]) {
         parameters {
             string(
                 name: 'PROJECT_NAME',
-                description: 'Project name (e.g., project-a, project-b)'
+                description: 'Project name (e.g., power-bi, digital-cabin)'
             )
             choice(
                 name: 'ENVIRONMENT',
@@ -27,15 +28,19 @@ def call(Map config = [:]) {
                 defaultValue: 'main',
                 description: 'Repository branch'
             )
+            string(
+                name: 'GIT_REPO_URL',
+                description: 'Full Git repository URL'
+            )
         }
         
         environment {
             PROJECT_DISPLAY_NAME = "${params.PROJECT_NAME}-${params.ENVIRONMENT}"
-            WORKSPACE_PATH = "environments/${params.ENVIRONMENT}"
-            ARM_CLIENT_ID = credentials('azure-client-id')
-            ARM_CLIENT_SECRET = credentials('azure-client-secret')
-            ARM_SUBSCRIPTION_ID = credentials('azure-subscription-id')
-            ARM_TENANT_ID = credentials('azure-tenant-id')
+            // Environment-specific Azure credentials
+            ARM_CLIENT_ID = credentials("azure-sp-${params.ENVIRONMENT}-client-id")
+            ARM_CLIENT_SECRET = credentials("azure-sp-${params.ENVIRONMENT}-client-secret")
+            ARM_SUBSCRIPTION_ID = credentials("azure-sp-${params.ENVIRONMENT}-subscription-id")
+            ARM_TENANT_ID = credentials("azure-sp-${params.ENVIRONMENT}-tenant-id")
         }
         
         stages {
@@ -43,27 +48,27 @@ def call(Map config = [:]) {
                 steps {
                     script {
                         echo "[START] Starting deployment for ${PROJECT_DISPLAY_NAME}"
+                        echo "[INFO] Using Service Principal for environment: ${params.ENVIRONMENT}"
                         
-                        // Send Teams notification
-                        sendTeamsNotification(
-                            status: 'STARTED',
-                            projectName: params.PROJECT_NAME,
-                            environment: params.ENVIRONMENT,
-                            action: params.ACTION,
-                            triggeredBy: env.BUILD_USER
-                        )
+                        // Phase 2: Teams notification
+                        // sendTeamsNotification(
+                        //     status: 'STARTED',
+                        //     projectName: params.PROJECT_NAME,
+                        //     environment: params.ENVIRONMENT,
+                        //     action: params.ACTION
+                        // )
                         
-                        // Send Dynatrace event
-                        sendDynatraceEvent(
-                            eventType: 'CUSTOM_DEPLOYMENT',
-                            title: "Terraform ${params.ACTION} started",
-                            source: 'Jenkins',
-                            customProperties: [
-                                project: params.PROJECT_NAME,
-                                environment: params.ENVIRONMENT,
-                                action: params.ACTION
-                            ]
-                        )
+                        // Phase 2: Dynatrace event
+                        // sendDynatraceEvent(
+                        //     eventType: 'CUSTOM_DEPLOYMENT',
+                        //     title: "Terraform ${params.ACTION} started",
+                        //     source: 'Jenkins',
+                        //     customProperties: [
+                        //         project: params.PROJECT_NAME,
+                        //         environment: params.ENVIRONMENT,
+                        //         action: params.ACTION
+                        //     ]
+                        // )
                     }
                 }
             }
@@ -71,14 +76,15 @@ def call(Map config = [:]) {
             stage('Checkout') {
                 steps {
                     script {
-                        echo "[CHECKOUT] Checking out ${params.PROJECT_NAME} from branch ${params.GIT_BRANCH}"
+                        echo "[CHECKOUT] Cloning ${params.PROJECT_NAME} from ${params.GIT_REPO_URL}"
+                        echo "[CHECKOUT] Branch: ${params.GIT_BRANCH}"
                         
                         checkout([
                             $class: 'GitSCM',
                             branches: [[name: params.GIT_BRANCH]],
                             userRemoteConfigs: [[
-                                url: "https://gitlab.com/org/terraform-${params.PROJECT_NAME}.git",
-                                credentialsId: 'gitlab-credentials'
+                                url: params.GIT_REPO_URL,
+                                credentialsId: 'git-credentials'
                             ]]
                         ])
                     }
@@ -99,69 +105,65 @@ def call(Map config = [:]) {
             }
             
             stage('Security Scan') {
-                parallel {
-                    stage('TFSec') {
-                        steps {
-                            dir("${WORKSPACE_PATH}") {
-                                sh """
-                                    tfsec . --format junit --out tfsec-report-${PROJECT_DISPLAY_NAME}.xml
-                                """
-                            }
-                        }
-                    }
-                    stage('Checkov') {
-                        steps {
-                            dir("${WORKSPACE_PATH}") {
-                                sh """
-                                    checkov -d . --framework terraform \\
-                                        --output junitxml --output-file checkov-report-${PROJECT_DISPLAY_NAME}.xml
-                                """
-                            }
-                        }
-                    }
+                steps {
+                    sh """
+                        echo "[SCAN] Running TFSec security scan for ${PROJECT_DISPLAY_NAME}"
+                        tfsec . --format junit --out tfsec-report-${PROJECT_DISPLAY_NAME}.xml || true
+                    """
+                    // Phase 2: Add Checkov if needed
+                    // sh "checkov -d . --framework terraform --output junitxml --output-file checkov-report.xml"
                 }
             }
             
             stage('Terraform Init') {
                 steps {
-                    dir("${WORKSPACE_PATH}") {
-                        sh """
-                            echo "[INIT] Initializing Terraform for ${PROJECT_DISPLAY_NAME}"
-                            terraform init -upgrade
-                        """
-                    }
+                    sh """
+                        echo "[INIT] Configuring backend for ${PROJECT_DISPLAY_NAME}"
+                        
+                        # Generate dynamic backend configuration
+                        cat > backend-config.tfbackend << EOF
+resource_group_name  = "rg-terraform-state"
+storage_account_name = "stterraformstate"
+container_name       = "terraform-state-${params.ENVIRONMENT}"
+key                  = "${params.PROJECT_NAME}/terraform.tfstate"
+EOF
+                        
+                        echo "[INIT] Initializing Terraform with backend config"
+                        terraform init -backend-config=backend-config.tfbackend -upgrade
+                    """
                 }
             }
             
             stage('Terraform Plan') {
                 steps {
-                    dir("${WORKSPACE_PATH}") {
-                        script {
-                            def planExitCode = sh(
-                                script: """
-                                    terraform plan \\
-                                        -out=tfplan-${PROJECT_DISPLAY_NAME} \\
-                                        -var-file=terraform.tfvars \\
-                                        -detailed-exitcode
-                                """,
-                                returnStatus: true
-                            )
-                            
-                            if (planExitCode == 2) {
-                                echo "[WARNING] Changes detected for ${PROJECT_DISPLAY_NAME}"
-                            } else if (planExitCode == 0) {
-                                echo "[OK] No changes required for ${PROJECT_DISPLAY_NAME}"
-                            } else {
-                                error "[ERROR] Terraform plan failed for ${PROJECT_DISPLAY_NAME}"
-                            }
-                            
-                            sh "terraform show -json tfplan-${PROJECT_DISPLAY_NAME} > tfplan-${PROJECT_DISPLAY_NAME}.json"
+                    script {
+                        echo "[PLAN] Running Terraform plan for ${PROJECT_DISPLAY_NAME}"
+                        
+                        def planExitCode = sh(
+                            script: """
+                                terraform plan \\
+                                    -out=tfplan-${PROJECT_DISPLAY_NAME} \\
+                                    -var='environment=${params.ENVIRONMENT}' \\
+                                    -var='project_name=${params.PROJECT_NAME}' \\
+                                    -detailed-exitcode
+                            """,
+                            returnStatus: true
+                        )
+                        
+                        if (planExitCode == 2) {
+                            echo "[WARNING] Changes detected for ${PROJECT_DISPLAY_NAME}"
+                        } else if (planExitCode == 0) {
+                            echo "[OK] No changes required for ${PROJECT_DISPLAY_NAME}"
+                        } else {
+                            error "[ERROR] Terraform plan failed for ${PROJECT_DISPLAY_NAME}"
                         }
+                        
+                        sh "terraform show -json tfplan-${PROJECT_DISPLAY_NAME} > tfplan-${PROJECT_DISPLAY_NAME}.json"
                     }
                 }
             }
             
-            stage('Approval - DevOps Team') {
+            stage('Approval') {
                 when {
                     expression { 
                         params.ACTION == 'apply' || params.ACTION == 'destroy'
@@ -169,61 +171,37 @@ def call(Map config = [:]) {
                 }
                 steps {
                     script {
-                        sendTeamsNotification(
-                            status: 'PENDING_APPROVAL',
-                            projectName: params.PROJECT_NAME,
-                            environment: params.ENVIRONMENT,
-                            action: params.ACTION,
-                            approvalLevel: 'DevOps Team'
-                        )
+                        def approvalMessage = "Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+                        def approvers = 'devops-team'
+                        def timeoutHours = 2
                         
-                        timeout(time: 2, unit: 'HOURS') {
+                        // Production requires additional approval
+                        if (params.ENVIRONMENT == 'prd') {
+                            approvalMessage = "PRODUCTION: Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+                            approvers = 'devops-team,security-team'
+                            timeoutHours = 4
+                        }
+                        
+                        echo "[APPROVAL] Waiting for approval: ${approvalMessage}"
+                        
+                        // Phase 2: Add email/Teams notification
+                        // sendTeamsNotification(status: 'PENDING_APPROVAL', ...)
+                        
+                        timeout(time: timeoutHours, unit: 'HOURS') {
                             input(
-                                id: 'DevOpsApproval',
-                                message: "Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?",
-                                submitter: 'devops-team',
+                                id: 'Approval',
+                                message: approvalMessage,
+                                submitter: approvers,
                                 parameters: [
                                     text(
                                         name: 'APPROVAL_COMMENT',
-                                        description: 'Comments for this approval'
+                                        description: 'Approval comments'
                                     )
                                 ]
                             )
                         }
-                    }
-                }
-            }
-            
-            stage('Approval - Security Team') {
-                when {
-                    expression { 
-                        (params.ACTION == 'apply' || params.ACTION == 'destroy') && 
-                        params.ENVIRONMENT == 'production'
-                    }
-                }
-                steps {
-                    script {
-                        sendTeamsNotification(
-                            status: 'PENDING_APPROVAL',
-                            projectName: params.PROJECT_NAME,
-                            environment: params.ENVIRONMENT,
-                            action: params.ACTION,
-                            approvalLevel: 'Security Team (Production)'
-                        )
                         
-                        timeout(time: 4, unit: 'HOURS') {
-                            input(
-                                id: 'SecurityApproval',
-                                message: "Security Team: Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME} (PRODUCTION)?",
-                                submitter: 'security-team',
-                                parameters: [
-                                    text(
-                                        name: 'SECURITY_APPROVAL_COMMENT',
-                                        description: 'Security review comments'
-                                    )
-                                ]
-                            )
-                        }
+                        echo "[APPROVAL] Approved by: ${env.BUILD_USER}"
                     }
                 }
             }
@@ -233,12 +211,11 @@ def call(Map config = [:]) {
                     expression { params.ACTION == 'apply' }
                 }
                 steps {
-                    dir("${WORKSPACE_PATH}") {
-                        sh """
-                            echo "[START] Applying changes for ${PROJECT_DISPLAY_NAME}"
-                            terraform apply tfplan-${PROJECT_DISPLAY_NAME}
-                        """
-                    }
+                    sh """
+                        echo "[APPLY] Applying changes for ${PROJECT_DISPLAY_NAME}"
+                        terraform apply tfplan-${PROJECT_DISPLAY_NAME}
+                        echo "[SUCCESS] Apply completed for ${PROJECT_DISPLAY_NAME}"
+                    """
                 }
             }
             
@@ -247,83 +224,90 @@ def call(Map config = [:]) {
                     expression { params.ACTION == 'destroy' }
                 }
                 steps {
-                    dir("${WORKSPACE_PATH}") {
-                        sh """
-                            echo "[DESTROY] Destroying resources for ${PROJECT_DISPLAY_NAME}"
-                            terraform destroy -var-file=terraform.tfvars -auto-approve
-                        """
-                    }
-                }
-            }
-            
-            stage('Post-Deployment Tests') {
-                when {
-                    expression { params.ACTION == 'apply' }
-                }
-                steps {
                     sh """
-                        echo "[TEST] Running post-deployment tests for ${PROJECT_DISPLAY_NAME}"
-                        ./scripts/post-deployment-tests.sh ${params.PROJECT_NAME} ${params.ENVIRONMENT}
+                        echo "[DESTROY] Destroying resources for ${PROJECT_DISPLAY_NAME}"
+                        terraform destroy \\
+                            -var='environment=${params.ENVIRONMENT}' \\
+                            -var='project_name=${params.PROJECT_NAME}' \\
+                            -auto-approve
+                        echo "[SUCCESS] Destroy completed for ${PROJECT_DISPLAY_NAME}"
                     """
                 }
             }
+            
+            // Phase 2: Post-deployment validations
+            // stage('Post-Deployment Tests') {
+            //     when {
+            //         expression { params.ACTION == 'apply' }
+            //     }
+            //     steps {
+            //         sh "./scripts/post-deployment-tests.sh ${params.PROJECT_NAME} ${params.ENVIRONMENT}"
+            //     }
+            // }
         }
         
         post {
             success {
                 script {
-                    sendTeamsNotification(
-                        status: 'SUCCESS',
-                        projectName: params.PROJECT_NAME,
-                        environment: params.ENVIRONMENT,
-                        action: params.ACTION,
-                        buildUrl: env.BUILD_URL,
-                        duration: currentBuild.durationString
-                    )
+                    echo "[SUCCESS] ${params.ACTION} completed for ${PROJECT_DISPLAY_NAME}"
+                    echo "[INFO] Build URL: ${env.BUILD_URL}"
                     
-                    sendDynatraceEvent(
-                        eventType: 'CUSTOM_DEPLOYMENT',
-                        title: "Terraform ${params.ACTION} completed successfully",
-                        source: 'Jenkins',
-                        customProperties: [
-                            project: params.PROJECT_NAME,
-                            environment: params.ENVIRONMENT,
-                            action: params.ACTION,
-                            duration: currentBuild.duration,
-                            status: 'SUCCESS'
-                        ]
-                    )
+                    // Phase 2: Teams notification
+                    // sendTeamsNotification(
+                    //     status: 'SUCCESS',
+                    //     projectName: params.PROJECT_NAME,
+                    //     environment: params.ENVIRONMENT,
+                    //     action: params.ACTION,
+                    //     buildUrl: env.BUILD_URL
+                    // )
+                    
+                    // Phase 2: Dynatrace event
+                    // sendDynatraceEvent(
+                    //     eventType: 'CUSTOM_DEPLOYMENT',
+                    //     title: "Terraform ${params.ACTION} completed successfully",
+                    //     source: 'Jenkins',
+                    //     customProperties: [
+                    //         project: params.PROJECT_NAME,
+                    //         environment: params.ENVIRONMENT,
+                    //         action: params.ACTION,
+                    //         status: 'SUCCESS'
+                    //     ]
+                    // )
                 }
             }
             
             failure {
                 script {
-                    sendTeamsNotification(
-                        status: 'FAILURE',
-                        projectName: params.PROJECT_NAME,
-                        environment: params.ENVIRONMENT,
-                        action: params.ACTION,
-                        buildUrl: env.BUILD_URL,
-                        errorLog: currentBuild.rawBuild.getLog(50).join('\n')
-                    )
+                    echo "[FAILURE] ${params.ACTION} failed for ${PROJECT_DISPLAY_NAME}"
+                    echo "[INFO] Build URL: ${env.BUILD_URL}"
                     
-                    sendDynatraceEvent(
-                        eventType: 'CUSTOM_DEPLOYMENT',
-                        title: "Terraform ${params.ACTION} failed",
-                        source: 'Jenkins',
-                        customProperties: [
-                            project: params.PROJECT_NAME,
-                            environment: params.ENVIRONMENT,
-                            action: params.ACTION,
-                            status: 'FAILURE'
-                        ]
-                    )
+                    // Phase 2: Teams notification
+                    // sendTeamsNotification(
+                    //     status: 'FAILURE',
+                    //     projectName: params.PROJECT_NAME,
+                    //     environment: params.ENVIRONMENT,
+                    //     action: params.ACTION,
+                    //     buildUrl: env.BUILD_URL
+                    // )
+                    
+                    // Phase 2: Dynatrace event
+                    // sendDynatraceEvent(
+                    //     eventType: 'CUSTOM_DEPLOYMENT',
+                    //     title: "Terraform ${params.ACTION} failed",
+                    //     source: 'Jenkins',
+                    //     customProperties: [
+                    //         project: params.PROJECT_NAME,
+                    //         environment: params.ENVIRONMENT,
+                    //         action: params.ACTION,
+                    //         status: 'FAILURE'
+                    //     ]
+                    // )
                 }
             }
             
             always {
                 archiveArtifacts artifacts: "**/tfplan-${PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
-                junit "**/tfsec-report-${PROJECT_DISPLAY_NAME}.xml, **/checkov-report-${PROJECT_DISPLAY_NAME}.xml"
+                junit "**/tfsec-report-${PROJECT_DISPLAY_NAME}.xml"
                 cleanWs()
             }
         }

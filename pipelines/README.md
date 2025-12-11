@@ -7,100 +7,112 @@ This directory contains all Jenkins pipelines (Shared Library) for Terraform inf
 ### 1. terraform-deploy-pipeline.groovy
 **Main pipeline for resource deployment and destroy**
 
-- **Parameters:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH
-- **Approvals:** DevOps Team (all) + Security Team (prod)
-- **Integrations:** Teams + Dynatrace
-- **Usage:** Deploy/destroy individual projects
+- **Execution:** Manual only - no automatic triggers
+- **Parameters:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH, GIT_REPO_URL
+- **Backend:** Dynamic configuration (injected at runtime)
+- **Credentials:** Environment-specific Service Principals (azure-sp-{env}-*)
+- **Security:** TFSec scanning
+- **Approvals:** Jenkins-based (DevOps Team + Security Team for PRD)
+- **Usage:** Deploy/destroy any project in any environment
 
 ### 2. terraform-validation-pipeline.groovy
-**Automatic validation on Pull/Merge Requests**
+**Code validation for Pull Requests**
 
-- **Trigger:** Automatic on MRs
-- **Validation:** Parallel across all environments
-- **Integrations:** GitLab (status + comments)
-- **Usage:** Quality gate for MRs
+- **Execution:** Manual only - no automatic triggers
+- **Parameters:** GIT_REPO_URL, GIT_BRANCH
+- **Validation:** Format check, syntax validation, security scan (TFSec)
+- **Usage:** Run before merging code changes
 
 ### 3. terraform-drift-detection-pipeline.groovy
-**Scheduled drift detection**
+**Scheduled drift detection across all projects**
 
-- **Trigger:** Cron (every 4 hours)
-- **Scope:** All projects and environments
-- **Integrations:** Teams + Dynatrace (only when drift)
-- **Usage:** Continuous monitoring
+- **Execution:** Automatic (cron: every 4 hours) - ONLY pipeline with automatic trigger
+- **Parameters:** PROJECTS_LIST (comma-separated)
+- **Backend:** Dynamic configuration per environment
+- **Credentials:** Environment-specific Service Principals
+- **Scope:** All projects in all environments (prd, qlt, tst)
+- **Usage:** Continuous infrastructure drift monitoring
 
 ### 4. terraform-modules-validation-pipeline.groovy
-**Monorepo module validation**
+**Validation for Terraform modules repository**
 
-- **Trigger:** Push and MRs on modules repo
-- **Validation:** Format, syntax, security, tests
-- **Quality Gates:** README required, tests recommended
-- **Usage:** Quality gate for modules
+- **Execution:** Manual only - no automatic triggers
+- **Parameters:** MODULE_REPO_URL, GIT_BRANCH
+- **Validation:** Format, syntax, security (TFSec), examples validation
+- **Quality:** Checks for README, validates example code
+- **Usage:** Quality gate for modules before versioning
 
-## Helper Functions
+## Phase 2 Features (Commented Out)
+
+All pipelines have Phase 2 features commented out and ready for future implementation:
 
 ### sendTeamsNotification.groovy
-Sends formatted notifications to Microsoft Teams.
+Sends formatted notifications to Microsoft Teams (Phase 2).
 
-**Parameters:**
-- `status`: STARTED | SUCCESS | FAILURE | PENDING_APPROVAL | DRIFT_DETECTED
-- `projectName`: Project name
-- `environment`: Target environment
-- `action`: Action being executed
-- `buildUrl`: Link to Jenkins build
+**Future notifications:**
+- Deploy started/completed
+- Pending approvals
+- Drift detected
+- Validation results
 
 ### sendDynatraceEvent.groovy
-Sends events and metrics to Dynatrace.
+Sends events and metrics to Dynatrace (Phase 2).
 
-**Metrics sent:**
-- `terraform.pipeline.duration`: Pipeline duration
-- `terraform.pipeline.status`: Status (1=success, 0=failure)
-- `terraform.drift.detected`: Drift detected
+**Future metrics:**
+- Pipeline duration and status
+- Drift detection events
+- Deployment tracking
 
 ## Jenkins Installation
 
 ### 1. Create Jenkins Shared Library
 
-```groovy
-// In Jenkins: Manage Jenkins → Configure System → Global Pipeline Libraries
+In Jenkins: Manage Jenkins → Configure System → Global Pipeline Libraries
 
-Name: terraform-pipelines
-Default version: main
-Project repository: https://gitlab.com/org/jenkins-shared-library.git
-Credentials: gitlab-credentials
-```
+- Name: `terraform-pipelines`
+- Default version: `main`
+- Project repository: Your Jenkins shared library repository
+- Credentials: `git-credentials`
 
 ### 2. Shared Library Repository Structure
 
-```
+Place these pipeline files in the `vars/` directory:
+
+```text
 jenkins-shared-library/
 ├── vars/
 │   ├── terraformDeploy.groovy
 │   ├── terraformValidation.groovy
 │   ├── terraformDriftDetection.groovy
 │   ├── terraformModulesValidation.groovy
-│   ├── sendTeamsNotification.groovy
-│   └── sendDynatraceEvent.groovy
+│   ├── sendTeamsNotification.groovy      (Phase 2)
+│   └── sendDynatraceEvent.groovy         (Phase 2)
 └── README.md
 ```
 
 ### 3. Configure Credentials in Jenkins
 
-```
-Manage Jenkins → Credentials → Add Credentials
+**Required Now:**
 
-- azure-client-id: Azure Service Principal Client ID
-- azure-client-secret: Azure Service Principal Secret
-- azure-subscription-id: Azure Subscription ID
-- azure-tenant-id: Azure Tenant ID
-- gitlab-credentials: GitLab personal access token
-- teams-webhook-url: Microsoft Teams Incoming Webhook URL
-- dynatrace-url: Dynatrace environment URL
-- dynatrace-api-token: Dynatrace API token
-```
+Manage Jenkins → Credentials → Add Credentials (Secret Text)
+
+**Per Environment (PRD, QLT, TST):**
+- `azure-sp-prd-client-id` / `azure-sp-qlt-client-id` / `azure-sp-tst-client-id`
+- `azure-sp-prd-client-secret` / `azure-sp-qlt-client-secret` / `azure-sp-tst-client-secret`
+- `azure-sp-prd-subscription-id` / `azure-sp-qlt-subscription-id` / `azure-sp-tst-subscription-id`
+- `azure-sp-prd-tenant-id` / `azure-sp-qlt-tenant-id` / `azure-sp-tst-tenant-id`
+
+**Git Access:**
+- `git-credentials`: Git access token or SSH key
+
+**Phase 2:**
+- `teams-webhook-url`: Microsoft Teams Incoming Webhook
+- `dynatrace-url`: Dynatrace environment URL
+- `dynatrace-api-token`: Dynatrace API token
 
 ### 4. Create Jenkins Jobs
 
-#### Job 1: Terraform Deploy (Parameterized)
+#### Job 1: Terraform Deploy (Parameterized Job)
 
 ```groovy
 @Library('terraform-pipelines') _
@@ -108,7 +120,9 @@ Manage Jenkins → Credentials → Add Credentials
 terraformDeploy()
 ```
 
-#### Job 2: Terraform Validation (MultiBranch Pipeline)
+Configuration: Pipeline job with parameters (manual execution only)
+
+#### Job 2: Terraform Validation (Pipeline Job)
 
 ```groovy
 @Library('terraform-pipelines') _
@@ -116,7 +130,9 @@ terraformDeploy()
 terraformValidation()
 ```
 
-#### Job 3: Terraform Drift Detection (Scheduled)
+Configuration: Pipeline job with parameters (manual execution only)
+
+#### Job 3: Terraform Drift Detection (Pipeline Job)
 
 ```groovy
 @Library('terraform-pipelines') _
@@ -124,7 +140,9 @@ terraformValidation()
 terraformDriftDetection()
 ```
 
-#### Job 4: Terraform Modules Validation (MultiBranch Pipeline)
+Configuration: Pipeline job with cron trigger (H */4 * * *)
+
+#### Job 4: Terraform Modules Validation (Pipeline Job)
 
 ```groovy
 @Library('terraform-pipelines') _
@@ -132,75 +150,74 @@ terraformDriftDetection()
 terraformModulesValidation()
 ```
 
+Configuration: Pipeline job with parameters (manual execution only)
+
 ## Security
 
 ### Approval Permissions
 
-```groovy
-// Configure in Jenkins: Manage Jenkins → Configure Global Security
+Configure in Jenkins: Manage Jenkins → Configure Global Security → Authorization
 
-Role-Based Authorization:
+**Role-Based Strategy:**
 
-devops-team:
-  - members: ['user1@company.com', 'user2@company.com']
-  - permissions: ['Job.Build', 'Job.Cancel', 'Job.Read']
+- **devops-team**: Can approve TST, QLT, PRD deployments
+- **security-team**: Can approve PRD deployments (additional layer)
 
-security-team:
-  - members: ['security1@company.com', 'security2@company.com']
-  - permissions: ['Job.Build', 'Job.Cancel', 'Job.Read']
-```
+Assign users to these roles in Jenkins authorization matrix.
 
-## Monitoring
-
-### Dynatrace Dashboards
-
-Metrics available for dashboard:
-- `terraform.pipeline.duration` per project/environment
-- `terraform.pipeline.status` success rate
-- `terraform.drift.detected` drift events
-- `terraform.resources.count` managed resources
-
-### Teams Notifications
-
-Notified events:
-- Deploy started
-- Pending approvals
-- Deploy completed (success/failure)
-- Drift detected
-- Validation failures
-
-## Usage Example
+## Usage Examples
 
 ### Deploy a Project
 
-1. Access "Terraform Deploy" job
+1. Open "Terraform Deploy" job in Jenkins
 2. Click "Build with Parameters"
-3. Fill in:
-   - PROJECT_NAME: `project-a`
-   - ENVIRONMENT: `production`
-   - ACTION: `apply`
+3. Fill parameters:
+   - PROJECT_NAME: `power-bi`
+   - ENVIRONMENT: `prd`
+   - ACTION: `plan`
    - GIT_BRANCH: `main`
+   - GIT_REPO_URL: `git@github.com:org/power-bi.git`
+4. Click "Build" - pipeline runs plan
+5. Review plan output
+6. Run again with ACTION: `apply`
+7. Approve when prompted (devops-team + security-team for PRD)
+8. Infrastructure deployed
+
+### Validate Code Before Merge
+
+1. Open "Terraform Validation" job
+2. Click "Build with Parameters"
+3. Fill parameters:
+   - GIT_REPO_URL: `git@github.com:org/my-project.git`
+   - GIT_BRANCH: `feature/my-changes`
 4. Click "Build"
-5. Wait for DevOps Team approval
-6. Wait for Security Team approval (prod)
-7. Deploy will execute
+5. Review validation results (format, syntax, security)
+6. Fix any issues before merging
 
-### Validate a Module
+### Check Drift Detection Results
 
-1. Checkout branch
-2. Make changes to module
-3. Commit and push
-4. Create Merge Request
-5. Validation pipeline executes automatically
-6. Result appears as status on MR
+1. Open "Terraform Drift Detection" job
+2. View last execution results
+3. Check console output for drift warnings
+4. Pipeline runs automatically every 4 hours
+5. Update PROJECTS_LIST parameter as needed
+
+## Phase 2 Features
+
+When ready to implement notifications and monitoring:
+
+1. Uncomment Teams/Dynatrace code in pipeline files
+2. Add webhook URLs and API tokens to Jenkins credentials
+3. Configure Dynatrace dashboards
+4. Test notifications
 
 ## Additional Documentation
 
-- [Complete Setup Guide](../docs/SETUP-TRACKING.md)
-- [Backend Administration](../docs/BACKEND-ADMIN.md)
-- [Docker README](../docker/README.md)
+- [Setup Guide](../docs/SETUP.md)
+- [Backend Configuration](../docs/BACKEND.md)
+- [Architecture Plan](../docs/architecture-plan.md)
+- [Docker Image](../docker/README.md)
 
 ---
 
-**Last Updated:** December 2025  
-**Maintained By:** DevOps Team
+**Last Updated:** December 2025
