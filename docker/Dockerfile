@@ -38,7 +38,11 @@ RUN apk add --no-cache \
     openssh-client \
     openjdk17-jre-headless \
     python3 \
-    py3-pip && \
+    py3-pip \
+    gcc \
+    musl-dev \
+    python3-dev \
+    linux-headers && \
     rm -rf /var/cache/apk/*
 
 # Azure CLI (versao minima via pip)
@@ -47,7 +51,8 @@ RUN pip3 install --no-cache-dir \
     azure-mgmt-resource \
     azure-mgmt-storage \
     --break-system-packages && \
-    rm -rf /root/.cache
+    rm -rf /root/.cache && \
+    apk del gcc musl-dev python3-dev linux-headers
 
 # Copiar binarios
 COPY --from=builder /tmp/terraform /usr/local/bin/terraform
