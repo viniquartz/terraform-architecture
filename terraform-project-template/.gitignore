@@ -1,26 +1,67 @@
 # Terraform
-.terraform/
-.terraform.lock.hcl
+**/.terraform/*
 *.tfstate
 *.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+# Terraform Plans
 *.tfplan
-tfplan
+tfplan*
+*.plan
+tfplan-*.json
 
-# Backend config (dynamically generated)
-*.tfbackend
-backend-config*.tfbackend
+# Terraform Variables (contain sensitive data)
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
 
-# Sensitive variables
+# Terraform Overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI Configuration
+.terraformrc
+terraform.rc
+
+# Backend Configuration (dynamic, generated at runtime)
+backend-config.tfbackend
+backend-config.hcl
+*.backend
+
+# Lock File (uncomment if team decides not to commit)
+# .terraform.lock.hcl
+
+# Credentials and Secrets
+*.pem
+*.key
+*.p12
+*.pfx
+.credentials/
+credentials.json
 .env
-*.auto.tfvars
+.env.local
+.env.*.local
+
+# IDE and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+Desktop.ini
 
 # Logs
 *.log
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-
-# macOS
-.DS_Store
+# Test Files
+.cache/
+*.test
