@@ -1,102 +1,15 @@
-# Credentials and Secrets (NEVER COMMIT)
-*.pem
-*.key
-*.p12
-*.pfx
-*.cer
-*.crt
-id_rsa*
-*.ppk
-.credentials/
-credentials.json
-*-credentials.json
+# Credentials (Service Principals)
 sp-*-credentials.json
-.env
-.env.local
-.env.*.local
-.azure/
-.aws/
-
-# Sensitive JSON Files (Service Principal credentials)
 *-credentials.json
-sp-*.json
 
-# IDE and Editors
+# IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-*.swn
-*~
-.project
-.classpath
-.settings/
-*.sublime-project
-*.sublime-workspace
 
-# OS Files
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-Desktop.ini
-
-# WSL
-.wslconfig
 
 # Logs
 *.log
-logs/
-*.log.*
-
-# Test and Coverage
-.cache/
-*.test
-coverage/
-.pytest_cache/
-__pycache__/
-*.pyc
-*.pyo
-
-# Build Artifacts
-dist/
-build/
-*.zip
-*.tar.gz
-*.tar
-
-# Jenkins
-jenkins_home/
-.jenkins/
-
-# Lock Files (uncomment if team decides to ignore)
-# .terraform.lock.hcl
-
-# Temporary Files
-tmp/
-temp/
-*.tmp
-*.bak
-*.swp
-
-# Node (for Jenkins/Groovy development)
-node_modules/
-npm-debug.log
-yarn-error.log
-
-# Python Virtual Environments
-venv/
-env/
-.venv/
-*.egg-info/
-
-# Documentation Build
-_site/
-.jekyll-cache/
-
-# Backup Files
-*.backup
-*~
