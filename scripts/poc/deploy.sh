@@ -73,8 +73,7 @@ cd "$WORKSPACE_PATH" || {
 echo ""
 log_step "[STEP 1/2] Generating execution plan..."
 terraform plan \
-    -var="environment=$ENVIRONMENT" \
-    -var="project_name=$PROJECT_NAME" \
+    -var-file="environments/${ENVIRONMENT}/terraform.tfvars" \
     -out=tfplan
 
 # Step 2: Apply changes

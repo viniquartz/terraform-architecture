@@ -103,8 +103,7 @@ cd "$WORKSPACE_PATH" || {
 echo ""
 log_step "[STEP 1/2] Generating destroy plan..."
 terraform plan -destroy \
-    -var="environment=$ENVIRONMENT" \
-    -var="project_name=$PROJECT_NAME" \
+    -var-file="environments/${ENVIRONMENT}/terraform.tfvars" \
     -out=tfplan-destroy
 
 log_info "Destroy plan generated"

@@ -180,8 +180,7 @@ EOF
                             script: """
                                 terraform plan \\
                                     -out=tfplan-${PROJECT_DISPLAY_NAME} \\
-                                    -var='environment=${params.ENVIRONMENT}' \\
-                                    -var='project_name=${params.PROJECT_NAME}' \\
+                                    -var-file='environments/${params.ENVIRONMENT}/terraform.tfvars' \\
                                     -detailed-exitcode
                             """,
                             returnStatus: true
@@ -264,8 +263,7 @@ EOF
                     sh """
                         echo "[DESTROY] Destroying resources for ${PROJECT_DISPLAY_NAME}"
                         terraform destroy \\
-                            -var='environment=${params.ENVIRONMENT}' \\
-                            -var='project_name=${params.PROJECT_NAME}' \\
+                            -var-file='environments/${params.ENVIRONMENT}/terraform.tfvars' \\
                             -auto-approve
                         echo "[SUCCESS] Destroy completed for ${PROJECT_DISPLAY_NAME}"
                     """

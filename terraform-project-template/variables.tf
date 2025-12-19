@@ -24,9 +24,26 @@ variable "location" {
   default     = "brazilsouth"
 }
 
-# Optional: SSH key for VM module (uncomment if using VMs)
-# variable "admin_ssh_key" {
-#   description = "SSH public key for VM admin user"
-#   type        = string
-#   sensitive   = true
-# }
+# ==============================================================================
+# COMPUTE - LINUX VM VARIABLES
+# ==============================================================================
+variable "admin_ssh_key_linux" {
+  description = "SSH public key for Linux VM admin user"
+  type        = string
+  sensitive   = true
+}
+
+# ==============================================================================
+# COMPUTE - WINDOWS VM VARIABLES
+# ==============================================================================
+variable "admin_password_windows" {
+  description = "Admin password for Windows VM"
+  type        = string
+  sensitive   = true
+  
+  validation {
+    condition     = length(var.admin_password_windows) >= 12
+    error_message = "Password must be at least 12 characters"
+  }
+}
+

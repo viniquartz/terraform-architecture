@@ -66,8 +66,7 @@ EOF
                                         def exitCode = sh(
                                             script: """
                                                 terraform plan \\
-                                                    -var='environment=${env}' \\
-                                                    -var='project_name=${project}' \\
+                                                    -var-file='environments/${env}/terraform.tfvars' \\
                                                     -detailed-exitcode
                                             """,
                                             returnStatus: true

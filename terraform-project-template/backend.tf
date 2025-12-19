@@ -1,5 +1,7 @@
 terraform {
   backend "azurerm" {
-    # Values injected via scripts/init-backend.sh
+    # Backend configurado dinamicamente:
+    # - Scripts POC: geram backend-config.tfbackend automaticamente
+    # - Pipelines Jenkins: injetam configuração durante execução do job
   }
 }
