@@ -1,53 +1,101 @@
-# Virtual Machine Module
+# Linux VM Module
 
-Terraform module to create and manage Linux Virtual Machines with Network Interface.
+Módulo Terraform para criar uma VM Linux no Azure.
 
-## Features
+## Características
 
-- Linux VM with automatic NIC creation
-- SSH authentication (no password)
-- Custom VM sizes
-- Managed disk support
-- Boot diagnostics
-- Multiple data disks support
+- ✅ Ubuntu 22.04 LTS (default)
+- ✅ Network Interface dedicada
+- ✅ Suporte a Public IP (opcional)
+- ✅ OS disk configurável
+- ✅ SSH authentication
 
-## Usage
-
-### Basic Example (POC)
+## Uso
 
 ```hcl
-module "vm" {
-  source = "git@github.com:org/terraform-azure-modules.git//modules/compute/vm?ref=v1.0.0"
+module "vm_linux" {
+  source = "git@github.com:org/terraform-azure-modules.git//modules/compute/vm-linux?ref=v1.0.0"
   
-  name                = module.naming.virtual_machine
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.location
+  name                = "vm-myapp-linux-tst-01"
+  resource_group_name = "rg-myapp-tst-brazilsouth-01"
+  location            = "brazilsouth"
   vm_size             = "Standard_B2s"
-  subnet_id           = module.vnet.subnet_ids["app"]
-  admin_ssh_key       = var.admin_ssh_key
+  subnet_id           = module.subnet.id
   
-  tags = local.common_tags
+  admin_username = "azureuser"
+  admin_ssh_key  = "ssh-rsa AAAAB3... user@example.com"
+  
+  os_disk = {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+    disk_size_gb         = 30
+  }
+  
+  source_image = {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+  
+  tags = {
+    Environment = "tst"
+  }
 }
 ```
 
-### Production VM with Data Disks
+## Inputs
 
+| Nome | Descrição | Tipo | Obrigatório | Default |
+|------|-----------|------|-------------|---------|
+| name | VM name | string | Sim | - |
+| resource_group_name | Resource Group name | string | Sim | - |
+| location | Azure region | string | Sim | - |
+| vm_size | VM size | string | Não | Standard_B2s |
+| subnet_id | Subnet ID | string | Sim | - |
+| admin_username | Admin username | string | Não | azureuser |
+| admin_ssh_key | SSH public key | string (sensitive) | Sim | - |
+| public_ip_id | Public IP ID (optional) | string | Não | null |
+| os_disk | OS disk configuration | object | Não | See below |
+| source_image | Source image reference | object | Não | Ubuntu 22.04 LTS |
+| tags | Tags | map(string) | Não | {} |
+
+**Default os_disk**:
 ```hcl
-module "vm_app" {
-  source = "git@github.com:org/terraform-azure-modules.git//modules/compute/vm?ref=v1.0.0"
-  
-  name                = "${module.naming.virtual_machine}-app01"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = var.location
-  
-  # VM Configuration
-  vm_size          = "Standard_D4s_v3"
-  admin_username   = "azureuser"
-  admin_ssh_key    = var.admin_ssh_key
-  
-  # Network
-  subnet_id = module.vnet.subnet_ids["app"]
-  
+{
+  caching              = "ReadWrite"
+  storage_account_type = "Premium_LRS"
+  disk_size_gb         = 30
+}
+```
+
+**Default source_image**:
+```hcl
+{
+  publisher = "Canonical"
+  offer     = "0001-com-ubuntu-server-jammy"
+  sku       = "22_04-lts-gen2"
+  version   = "latest"
+}
+```
+
+## Outputs
+
+| Nome | Descrição |
+|------|-----------|
+| id | VM ID |
+| name | VM name |
+| private_ip_address | VM private IP |
+| public_ip_address | VM public IP (if assigned) |
+| network_interface_id | Network Interface ID |
+
+## Imagens Linux Disponíveis
+
+- **Ubuntu 22.04 LTS**: `22_04-lts-gen2`
+- **Ubuntu 20.04 LTS**: `20_04-lts-gen2`
+- **Red Hat 8**: `8-lvm-gen2`
+- **CentOS 7**: `7-lvm-gen2`
+
   # OS Disk
   os_disk_size_gb     = 128
   os_disk_caching     = "ReadWrite"

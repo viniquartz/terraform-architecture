@@ -35,13 +35,27 @@ variable "admin_ssh_key" {
   type        = string
 }
 
-variable "os_disk_size_gb" {
-  description = "OS disk size in GB"
-  type        = number
-  default     = 30
+variable "public_ip_id" {
+  description = "Public IP ID (optional)"
+  type        = string
+  default     = null
 }
 
-variable "source_image_reference" {
+variable "os_disk" {
+  description = "OS disk configuration"
+  type = object({
+    caching              = string
+    storage_account_type = string
+    disk_size_gb         = number
+  })
+  default = {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+    disk_size_gb         = 30
+  }
+}
+
+variable "source_image" {
   description = "Source image reference"
   type = object({
     publisher = string

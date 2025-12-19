@@ -19,16 +19,6 @@ variable "address_space" {
   default     = ["10.0.0.0/16"]
 }
 
-variable "subnets" {
-  description = "Map of subnets to create"
-  type = map(object({
-    address_prefixes                          = list(string)
-    service_endpoints                         = optional(list(string), [])
-    private_endpoint_network_policies_enabled = optional(bool, true)
-  }))
-  default = {}
-}
-
 variable "dns_servers" {
   description = "DNS servers for VNet"
   type        = list(string)

@@ -18,6 +18,7 @@ resource "azurerm_network_interface" "main" {
     name                          = "internal"
     subnet_id                     = var.subnet_id
     private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = var.public_ip_id
   }
   
   tags = var.tags
@@ -41,16 +42,16 @@ resource "azurerm_linux_virtual_machine" "main" {
   }
   
   os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-    disk_size_gb         = var.os_disk_size_gb
+    caching              = var.os_disk.caching
+    storage_account_type = var.os_disk.storage_account_type
+    disk_size_gb         = var.os_disk.disk_size_gb
   }
   
   source_image_reference {
-    publisher = var.source_image_reference.publisher
-    offer     = var.source_image_reference.offer
-    sku       = var.source_image_reference.sku
-    version   = var.source_image_reference.version
+    publisher = var.source_image.publisher
+    offer     = var.source_image.offer
+    sku       = var.source_image.sku
+    version   = var.source_image.version
   }
   
   tags = var.tags
