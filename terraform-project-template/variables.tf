@@ -23,3 +23,10 @@ variable "location" {
   type        = string
   default     = "brazilsouth"
 }
+
+# Optional: SSH key for VM module (uncomment if using VMs)
+# variable "admin_ssh_key" {
+#   description = "SSH public key for VM admin user"
+#   type        = string
+#   sensitive   = true
+# }
