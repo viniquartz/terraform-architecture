@@ -1,51 +1,174 @@
 # Jenkins Agent Docker Image
 
-Optimized Jenkins image with Terraform and essential tools.
+Optimized Jenkins image with Terraform, Azure CLI, Trivy, and Infracost for CI/CD pipelines.
 
-## Available Versions
+## Image Details
 
-```bash
-docker build -t jenkins-terraform:optimized .
-```
+**Base:** Alpine Linux 3.19  
+**Size:** ~500-550MB (optimized)  
+**Tools:** Terraform, Azure CLI, Trivy, Infracost, Git, Java 17
 
-Includes:
+## Included Tools
 
-- Terraform 1.5.7
-- TFSec 1.28.4
-- Git, curl
-- Java 17 JRE
-- Bash
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Terraform | 1.5.7 | Infrastructure as Code |
+| Azure CLI | Latest | Azure authentication |
+| Trivy | 0.48.0 | Security scanning |
+| Infracost | 0.10.32 | Cost estimation |
+| Git | Latest | Version control |
+| OpenJDK 17 | Latest | Jenkins agent |
+| Bash | Latest | Script execution |
 
 ## Build
 
 ```bash
-# Optimized version (recommended)
+# Build image
+cd docker
 docker build -t jenkins-terraform:latest .
 
 # View size
 docker images jenkins-terraform:latest
+
+# Build with custom versions
+docker build \
+  --build-arg TERRAFORM_VERSION=1.6.0 \
+  --build-arg TRIVY_VERSION=0.49.0 \
+  --build-arg INFRACOST_VERSION=0.10.33 \
+  -t jenkins-terraform:latest .
 ```
 
 ## Usage
 
+### Test Locally
+
 ```bash
-# Test locally
-docker run -it jenkins-terraform:latest bash
+# Interactive shell
+docker run -it --rm jenkins-terraform:latest bash
 
 # Verify tools
-docker run jenkins-terraform:latest terraform version
-docker run jenkins-terraform:latest tfsec --version
+docker run --rm jenkins-terraform:latest bash -c "
+  terraform version
+  az version --query '\"azure-cli\"' -o tsv
+  trivy --version
+  infracost --version
+"
+```
+
+### With Azure Credentials
+
+```bash
+docker run -it --rm \
+  -e ARM_CLIENT_ID="xxx" \
+  -e ARM_CLIENT_SECRET="xxx" \
+  -e ARM_SUBSCRIPTION_ID="xxx" \
+  -e ARM_TENANT_ID="xxx" \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  jenkins-terraform:latest bash
 ```
 
 ## Jenkins Configuration
 
-Configure in Jenkins (Manage Jenkins > Clouds):
+### Jenkinsfile Example
 
 ```groovy
-dockerTemplate {
-    image 'jenkins-terraform:latest'
-    label 'terraform-agent'
+pipeline {
+    agent {
+        docker {
+            image 'jenkins-terraform:latest'
+            label 'docker'
+        }
+    }
+    
+    environment {
+        ARM_CLIENT_ID       = credentials('azure-client-id')
+        ARM_CLIENT_SECRET   = credentials('azure-client-secret')
+        ARM_SUBSCRIPTION_ID = credentials('azure-subscription-id')
+        ARM_TENANT_ID       = credentials('azure-tenant-id')
+    }
+    
+    stages {
+        stage('Authenticate') {
+            steps {
+                sh './scripts/azure-login.sh'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                sh './scripts/deploy.sh myapp tst --auto-approve'
+            }
+        }
+    }
 }
+```
+
+## Authentication
+
+### Service Principal (CI/CD)
+
+Required environment variables:
+- `ARM_CLIENT_ID` - Service Principal App ID
+- `ARM_CLIENT_SECRET` - Service Principal Secret
+- `ARM_SUBSCRIPTION_ID` - Azure Subscription ID
+- `ARM_TENANT_ID` - Azure AD Tenant ID
+
+Set in Jenkins Credentials Manager and use `azure-login.sh` script.
+
+### Local Testing
+
+```bash
+export ARM_CLIENT_ID="xxx"
+export ARM_CLIENT_SECRET="xxx"
+export ARM_SUBSCRIPTION_ID="xxx"
+export ARM_TENANT_ID="xxx"
+
+docker run --rm \
+  -e ARM_CLIENT_ID \
+  -e ARM_CLIENT_SECRET \
+  -e ARM_SUBSCRIPTION_ID \
+  -e ARM_TENANT_ID \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  jenkins-terraform:latest \
+  bash -c "./scripts/azure-login.sh"
+```
+
+## Security
+
+- Non-root user: `jenkins` (UID 1000)
+- No credentials in image
+- Minimal base (Alpine Linux)
+- Multi-stage build
+- Security scanning ready
+
+## Troubleshooting
+
+### Azure CLI not found
+
+```bash
+# Verify installation
+docker run --rm jenkins-terraform:latest which az
+docker run --rm jenkins-terraform:latest az version
+```
+
+### Authentication fails
+
+Ensure environment variables are set and service principal has access to subscription.
+
+## Maintenance
+
+Update tool versions in Dockerfile:
+
+```dockerfile
+ARG TERRAFORM_VERSION=1.6.0
+ARG TFSEC_VERSION=1.28.5
+```
+
+Then rebuild:
+```bash
+docker build -t jenkins-terraform:latest .
 ```
 
 ## Quick Start

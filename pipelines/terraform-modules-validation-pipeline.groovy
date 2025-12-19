@@ -93,15 +93,57 @@ def call(Map config = [:]) {
             stage('Security Scan') {
                 steps {
                     sh """
-                        echo "[SCAN] Running TFSec security scan on all modules"
-                        tfsec modules/ \\
-                            --format junit \\
-                            --out tfsec-modules-report.xml \\
-                            --minimum-severity MEDIUM || true
+                        echo "[SCAN] Running Trivy security scan on all modules"
+                        
+                        trivy config modules/ \\
+                            --format sarif \\
+                            --output trivy-modules-report.sarif \\
+                            --severity MEDIUM,HIGH,CRITICAL || true
+                        
+                        echo "[SCAN] Converting SARIF to JUnit format"
+                        trivy convert --format template --template '@contrib/junit.tpl' \\
+                            trivy-modules-report.sarif > trivy-modules-report.xml || true
+                        
                         echo "[OK] Security scan completed"
                     """
-                    // Phase 2: Add Checkov if needed
-                    // sh "checkov -d modules/ --framework terraform"
+                }
+            }
+            
+            stage('Cost Analysis') {
+                steps {
+                    script {
+                        def modules = sh(
+                            script: 'find modules -name "main.tf" -exec dirname {} \\;',
+                            returnStdout: true
+                        ).trim().split('\n')
+                        
+                        echo "[COST] Running Infracost on example configurations"
+                        
+                        modules.each { module ->
+                            if (fileExists("${module}/examples")) {
+                                dir("${module}/examples") {
+                                    def examples = sh(
+                                        script: 'find . -maxdepth 1 -type d | tail -n +2',
+                                        returnStdout: true
+                                    ).trim().split('\n')
+                                    
+                                    examples.each { example ->
+                                        dir(example) {
+                                            sh """
+                                                echo "[COST] Analyzing ${module}/${example}"
+                                                infracost breakdown \\
+                                                    --path . \\
+                                                    --format json \\
+                                                    --out-file infracost-${module.replaceAll('/', '-')}-${example}.json || true
+                                            """
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        echo "[OK] Cost analysis completed"
+                    }
                 }
             }
             

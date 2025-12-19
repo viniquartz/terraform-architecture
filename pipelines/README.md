@@ -11,7 +11,8 @@ This directory contains all Jenkins pipelines (Shared Library) for Terraform inf
 - **Parameters:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH, GIT_REPO_URL
 - **Backend:** Dynamic configuration (injected at runtime)
 - **Credentials:** Environment-specific Service Principals (azure-sp-{env}-*)
-- **Security:** TFSec scanning
+- **Security:** Trivy security scanning (SARIF output)
+- **Cost Analysis:** Infracost cost estimation (HTML reports)
 - **Approvals:** Jenkins-based (DevOps Team + Security Team for PRD)
 - **Usage:** Deploy/destroy any project in any environment
 
@@ -20,7 +21,7 @@ This directory contains all Jenkins pipelines (Shared Library) for Terraform inf
 
 - **Execution:** Manual only - no automatic triggers
 - **Parameters:** GIT_REPO_URL, GIT_BRANCH
-- **Validation:** Format check, syntax validation, security scan (TFSec)
+- **Validation:** Format check, syntax validation, security scan (Trivy), cost analysis (Infracost)
 - **Usage:** Run before merging code changes
 
 ### 3. terraform-drift-detection-pipeline.groovy
@@ -38,7 +39,7 @@ This directory contains all Jenkins pipelines (Shared Library) for Terraform inf
 
 - **Execution:** Manual only - no automatic triggers
 - **Parameters:** MODULE_REPO_URL, GIT_BRANCH
-- **Validation:** Format, syntax, security (TFSec), examples validation
+- **Validation:** Format, syntax, security (Trivy), cost analysis (Infracost), examples validation
 - **Quality:** Checks for README, validates example code
 - **Usage:** Quality gate for modules before versioning
 

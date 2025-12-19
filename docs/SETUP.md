@@ -41,7 +41,9 @@ docker build -t jenkins-terraform:latest .
 ```bash
 docker run -it jenkins-terraform:latest bash
 terraform version
-tfsec --version
+trivy --version
+infracost --version
+az version
 ```
 
 ### Push to Registry
@@ -140,20 +142,38 @@ terraform plan
 terraform apply
 ```
 
-## 5. Using Template
+## 5. POC Testing
 
-### Copy Template
+### Setup Environment
 
 ```bash
-cp -r terraform-project-template ../my-project
-cd ../my-project
+export ARM_CLIENT_ID="..."
+export ARM_CLIENT_SECRET="..."
+export ARM_TENANT_ID="..."
+export ARM_SUBSCRIPTION_ID="..."
+```
+
+### Authenticate
+
+```bash
+cd scripts/poc
+./azure-login.sh
 ```
 
 ### Deploy
 
 ```bash
-./scripts/deploy.sh my-project prd
+# Configure backend and validate
+./configure.sh my-project tst /path/to/workspace
+
+# Deploy resources
+./deploy.sh my-project tst /path/to/workspace --auto-approve
+
+# Cleanup
+./destroy.sh my-project tst /path/to/workspace --auto-approve --delete-state
 ```
+
+For project template usage, see separate terraform-project-template repository.
 
 ## Useful Commands
 

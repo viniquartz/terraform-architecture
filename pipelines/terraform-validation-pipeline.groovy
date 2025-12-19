@@ -66,12 +66,42 @@ def call(Map config = [:]) {
             stage('Security Scan') {
                 steps {
                     sh """
-                        echo "[SCAN] Running TFSec security scan"
-                        tfsec . --format junit --out tfsec-validation-report.xml || true
+                        echo "[SCAN] Running Trivy security scan"
+                        trivy config . \\
+                            --format sarif \\
+                            --output trivy-validation-report.sarif \\
+                            --severity MEDIUM,HIGH,CRITICAL || true
+                        
+                        echo "[SCAN] Converting SARIF to JUnit format"
+                        trivy convert --format template --template '@contrib/junit.tpl' \\
+                            trivy-validation-report.sarif > trivy-validation-report.xml || true
+                        
                         echo "[OK] Security scan completed"
                     """
-                    // Phase 2: Add Checkov if needed
-                    // sh "checkov -d . --framework terraform"
+                }
+            }
+            
+            stage('Cost Estimation') {
+                steps {
+                    sh """
+                        echo "[COST] Running Infracost estimation"
+                        
+                        # Initialize for cost calculation
+                        terraform init -backend=false
+                        
+                        # Generate cost breakdown
+                        infracost breakdown \\
+                            --path . \\
+                            --format json \\
+                            --out-file infracost-validation.json || true
+                        
+                        # Show summary
+                        infracost output \\
+                            --path infracost-validation.json \\
+                            --format table || true
+                        
+                        echo "[OK] Cost estimation completed"
+                    """
                 }
             }
         }
@@ -96,7 +126,12 @@ def call(Map config = [:]) {
                 }
             }
             always {
-                junit "**/tfsec-validation-report.xml"
+                // Archive reports
+                archiveArtifacts artifacts: '**/*-report.*', allowEmptyArchive: true
+                
+                // Publish JUnit test results
+                junit testResults: '**/*-report.xml', allowEmptyResults: true
+                
                 cleanWs()
             }
         }

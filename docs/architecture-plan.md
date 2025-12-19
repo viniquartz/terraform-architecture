@@ -19,15 +19,13 @@ Each project (power-bi, digital-cabin, etc.) has its own Git repository with com
 
 **Structure per project:**
 ```
-my-project/
+my-project/ (separate repository)
 ├── backend.tf
 ├── providers.tf
 ├── variables.tf
 ├── main.tf
 ├── outputs.tf
-└── scripts/
-    ├── init-backend.sh
-    └── deploy.sh
+└── README.md
 ```
 
 ### Centralized Pipelines (4 Total)
@@ -49,7 +47,7 @@ Instead of creating 4 pipelines per project, we use 4 shared pipelines for ALL p
 
 2. **terraform-validation** - Validate pull requests
    - Runs on all project repositories
-   - Format, syntax, security checks
+   - Format, syntax, security (Trivy), cost analysis (Infracost)
 
 3. **terraform-drift-detection** - Detect configuration drift
    - Scheduled (every 4 hours)
@@ -130,10 +128,12 @@ Projects have empty backend.tf, scripts inject configuration at runtime.
 
 **How it works:**
 ```bash
-# Script creates backend-config.tfbackend dynamically
-./scripts/init-backend.sh my-project prd
+# POC scripts handle configuration dynamically
+cd scripts/poc
+./azure-login.sh
+./configure.sh my-project prd /path/to/workspace
 
-# Generated file:
+# Generated backend-config.tfbackend:
 # resource_group_name  = "rg-terraform-state"
 # storage_account_name = "stterraformstate"
 # container_name       = "terraform-state-prd"
@@ -189,10 +189,12 @@ azure-sp-prd-tenant-id
 
 ### Single Optimized Image
 
-One Alpine-based Docker image (~300-400MB) with essential tools:
+One Alpine-based Docker image (~500-550MB) with essential tools:
 
 - Terraform 1.5.7
-- TFSec 1.28.4
+- Trivy 0.48.0
+- Infracost 0.10.32
+- Azure CLI
 - Git
 - Java 17 JRE
 - Bash
@@ -209,21 +211,23 @@ One Alpine-based Docker image (~300-400MB) with essential tools:
 - Jenkins configuration complexity
 - Not needed - same tools work for all projects
 
-**Why these tools only:**
+**Why these tools:**
 
 - **Terraform**: Infrastructure provisioning
-- **TFSec**: Security scanning (fast, no Python needed)
+- **Trivy**: Multi-purpose security scanning with SARIF output
+- **Infracost**: Real-time cost estimation and visibility
+- **Azure CLI**: Authentication, validation, state management
 - **Git**: Clone repositories
 - **Java**: Jenkins agent runtime
 - **Bash**: Script execution
 
-**What we removed and why:**
+**Tool selection rationale:**
 
-- **Azure CLI**: Terraform provider handles Azure auth, CLI not needed
-- **Checkov**: Python-heavy, TFSec is sufficient
-- **terraform-docs**: Optional, can run separately if needed
+- **Trivy over TFSec**: Better maintained, multi-purpose scanner, industry-standard SARIF output
+- **Infracost addition**: Cost awareness during planning phase prevents surprises
+- **Azure CLI**: Required for service principal auth and backend validation
 
-Result: 2GB → 300-400MB (85% reduction)
+Image size optimized while maintaining all necessary functionality.
 
 ## Multi-Environment Support
 

@@ -107,11 +107,48 @@ def call(Map config = [:]) {
             stage('Security Scan') {
                 steps {
                     sh """
-                        echo "[SCAN] Running TFSec security scan for ${PROJECT_DISPLAY_NAME}"
-                        tfsec . --format junit --out tfsec-report-${PROJECT_DISPLAY_NAME}.xml || true
+                        echo "[SCAN] Running Trivy security scan for ${PROJECT_DISPLAY_NAME}"
+                        
+                        trivy config . \\
+                            --format sarif \\
+                            --output trivy-report-${PROJECT_DISPLAY_NAME}.sarif \\
+                            --severity MEDIUM,HIGH,CRITICAL || true
+                        
+                        trivy convert --format template --template '@contrib/junit.tpl' \\
+                            trivy-report-${PROJECT_DISPLAY_NAME}.sarif > trivy-report-${PROJECT_DISPLAY_NAME}.xml || true
+                        
+                        echo "[OK] Security scan completed"
                     """
-                    // Phase 2: Add Checkov if needed
-                    // sh "checkov -d . --framework terraform --output junitxml --output-file checkov-report.xml"
+                }
+            }
+            
+            stage('Cost Estimation') {
+                steps {
+                    sh """
+                        echo "[COST] Running Infracost for ${PROJECT_DISPLAY_NAME}"
+                        
+                        # Generate cost breakdown
+                        infracost breakdown \\
+                            --path . \\
+                            --format json \\
+                            --out-file infracost-${PROJECT_DISPLAY_NAME}.json \\
+                            --terraform-var environment=${params.ENVIRONMENT} \\
+                            --terraform-var project_name=${params.PROJECT_NAME} || true
+                        
+                        # Generate HTML report
+                        infracost output \\
+                            --path infracost-${PROJECT_DISPLAY_NAME}.json \\
+                            --format html \\
+                            --out-file infracost-${PROJECT_DISPLAY_NAME}.html || true
+                        
+                        # Show table summary
+                        echo "[COST] Cost Summary:"
+                        infracost output \\
+                            --path infracost-${PROJECT_DISPLAY_NAME}.json \\
+                            --format table || true
+                        
+                        echo "[OK] Cost estimation completed"
+                    """
                 }
             }
             

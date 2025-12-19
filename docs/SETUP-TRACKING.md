@@ -146,10 +146,8 @@ docker run -it --rm jenkins-terraform-agent:1.0 bash
 git --version
 az version
 terraform version
-tfsec --version
-checkov --version
-terraform-docs --version
-python3 --version
+trivy --version
+infracost --version
 java -version
 ```
 

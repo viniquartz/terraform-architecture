@@ -1,4 +1,5 @@
 .
+├── README.md
 ├── docker
 │   ├── Dockerfile
 │   └── README.md
@@ -7,7 +8,8 @@
 │   ├── FILE-STRUCTURE.txt
 │   ├── README.md
 │   ├── SETUP-TRACKING.md
-│   └── SETUP.md
+│   ├── SETUP.md
+│   └── architecture-plan.md
 ├── pipelines
 │   ├── README.md
 │   ├── sendDynatraceEvent.groovy
@@ -17,21 +19,35 @@
 │   ├── terraform-modules-validation-pipeline.groovy
 │   └── terraform-validation-pipeline.groovy
 ├── scripts
+│   ├── README.md
 │   ├── import
 │   │   └── generate-import-commands.sh
+│   ├── poc
+│   │   ├── README.md
+│   │   ├── azure-login.sh
+│   │   ├── configure.sh
+│   │   ├── deploy.sh
+│   │   └── destroy.sh
 │   └── setup
 │       ├── configure-azure-backend.sh
 │       └── create-service-principals.sh
-├── terraform-project-template
-│   ├── scripts
-│   │   ├── deploy.sh
-│   │   └── init-backend.sh
+├── terraform-modules
 │   ├── README.md
-│   ├── backend.tf
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   └── variables.tf
-└── README.md
+│   └── modules
+│       ├── compute
+│       ├── container
+│       ├── database
+│       ├── foundation
+│       ├── monitoring
+│       ├── network
+│       ├── security
+│       └── storage
+└── terraform-project-template
+    ├── README.md
+    ├── backend.tf
+    ├── main.tf
+    ├── outputs.tf
+    ├── providers.tf
+    └── variables.tf
 
-9 directories, 26 files
+19 directories, 32 files
