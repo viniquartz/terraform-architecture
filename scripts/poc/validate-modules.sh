@@ -88,20 +88,30 @@ if [ -d "$REPO_DIR" ]; then
     rm -rf "$REPO_DIR"
 fi
 
-# Inject token into URL
-AUTHENTICATED_URL=$(echo "$GITLAB_REPO_URL" | sed "s|https://|https://oauth2:${GITLAB_TOKEN}@|")
+# Configure Git credential helper to use token
+log_info "Configuring Git credentials..."
+git config --global credential.helper store
+
+# Extract GitLab host from URL
+GITLAB_HOST=$(echo "$GITLAB_REPO_URL" | sed -E 's|https?://([^/]+)/.*|\1|')
+
+# Store credentials for this session only
+echo "https://oauth2:${GITLAB_TOKEN}@${GITLAB_HOST}" > ~/.git-credentials
 
 log_info "Cloning from: $GITLAB_REPO_URL"
 log_info "Checking out: $TAG_OR_BRANCH"
 
-if git clone --branch "$TAG_OR_BRANCH" --depth 1 "$AUTHENTICATED_URL" "$REPO_DIR"; then
+if git clone --branch "$TAG_OR_BRANCH" --depth 1 "$GITLAB_REPO_URL" "$REPO_DIR" 2>&1; then
     log_info "✓ Repository cloned successfully"
     
-    # Remove credentials from git config
-    cd "$REPO_DIR"
-    git remote set-url origin "$GITLAB_REPO_URL"
-    cd ..
+    # Clean up credentials file
+    rm -f ~/.git-credentials
+    git config --global --unset credential.helper
 else
+    # Clean up on failure
+    rm -f ~/.git-credentials
+    git config --global --unset credential.helper
+    
     log_error "Failed to clone repository"
     exit 1
 fi

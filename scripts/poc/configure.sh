@@ -146,8 +146,22 @@ log_info "✓ Generated backend-config.tfbackend"
 # Terraform Initialization
 # ============================================
 
+# Configure Git credentials for Terraform module downloads
+log_info "Configuring Git credentials for Terraform modules..."
+git config --global credential.helper store
+
+# Extract GitLab host from URL
+GITLAB_HOST=$(echo "$GITLAB_REPO_URL" | sed -E 's|https?://([^/]+)/.*|\1|')
+
+# Store credentials for Terraform to download modules
+echo "https://oauth2:${GITLAB_TOKEN}@${GITLAB_HOST}" > ~/.git-credentials
+
 log_info "Initializing Terraform..."
 if terraform init -backend-config=backend-config.tfbackend -reconfigure; then
+    # Clean up credentials after successful init
+    rm -f ~/.git-credentials
+    git config --global --unset credential.helper
+    
     echo ""
     log_info "=========================================="
     log_info "Configuration completed successfully!"
@@ -162,6 +176,10 @@ if terraform init -backend-config=backend-config.tfbackend -reconfigure; then
     echo "  terraform plan -var-file='environments/$ENVIRONMENT/terraform.tfvars'"
     echo "  terraform apply -var-file='environments/$ENVIRONMENT/terraform.tfvars'"
 else
+    # Clean up credentials on failure
+    rm -f ~/.git-credentials
+    git config --global --unset credential.helper
+    
     log_error "Failed to initialize Terraform backend"
     exit 1
 fi
