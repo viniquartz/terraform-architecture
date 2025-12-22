@@ -1,18 +1,21 @@
 #!/bin/bash
 # 
 # Script: configure.sh
-# Purpose: Configure Terraform backend and validate configuration
+# Purpose: Clone terraform-project-template from GitLab and configure Terraform backend
 # 
 # What it does:
-# - Validates prerequisites (Azure CLI, Terraform)
-# - Checks Azure authentication
-# - Validates backend resources exist
-# - Generates backend-config.tfbackend file
+# - Authenticates to GitLab using Personal Access Token
+# - Clones terraform-project-template repository
+# - Generates backend configuration file
 # - Initializes Terraform with remote state backend
-# - Validates and formats Terraform configuration
 #
-# Usage: ./configure.sh <project-name> <environment> <workspace-path>
-# Example: ./configure.sh myapp tst ../../terraform-project-template
+# Prerequisites:
+# - GITLAB_TOKEN environment variable set
+# - Azure authentication already configured
+# - Backend resources (RG, Storage Account, Container) already created
+#
+# Usage: ./configure.sh <project-name> <environment> <gitlab-repo-url>
+# Example: ./configure.sh myapp tst https://gitlab.com/yourgroup/terraform-project-template.git
 #
 
 set -e
@@ -37,13 +40,14 @@ log_error() {
 
 PROJECT_NAME=${1}
 ENVIRONMENT=${2}
-WORKSPACE_PATH=${3:-"."}
+GITLAB_REPO_URL=${3}
 
-if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ]; then
+if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ] || [ -z "$GITLAB_REPO_URL" ]; then
     log_error "Missing required parameters"
-    echo "Usage: $0 <project-name> <environment> [workspace-path]"
-    echo "Example: $0 myapp prd"
-    echo "         $0 myapp tst ../../terraform-project-template"
+    echo "Usage: $0 <project-name> <environment> <gitlab-repo-url>"
+    echo ""
+    echo "Example:"
+    echo "  $0 myapp tst https://gitlab.com/yourgroup/terraform-project-template.git"
     exit 1
 fi
 
@@ -54,90 +58,81 @@ if [[ ! "$ENVIRONMENT" =~ ^(prd|qlt|tst)$ ]]; then
     exit 1
 fi
 
-# Validate Azure CLI is installed
-if ! command -v az &> /dev/null; then
-    log_error "Azure CLI is not installed"
-    echo "Install: https://docs.microsoft.com/cli/azure/install-azure-cli"
-    exit 1
-fi
+# ============================================
+# GitLab Authentication and Clone
+# ============================================
 
-log_info "Azure CLI found: $(az version --query '\"azure-cli\"' -o tsv)"
+log_info "Preparing to clone repository from GitLab"
 
-# Validate Azure CLI authentication
-log_info "Checking Azure authentication..."
-if ! az account show &> /dev/null; then
-    log_error "Not authenticated to Azure"
+WORKSPACE_DIR="$PROJECT_NAME"
+
+# Check if GITLAB_TOKEN is set
+if [ -z "$GITLAB_TOKEN" ]; then
+    log_error "GITLAB_TOKEN environment variable not set"
     echo ""
-    echo "Authentication methods:"
-    echo "  Local: az login"
-    echo "  CI/CD: Use service principal with environment variables"
-    echo "    ARM_CLIENT_ID, ARM_CLIENT_SECRET, ARM_SUBSCRIPTION_ID, ARM_TENANT_ID"
-    echo ""
-    echo "Or login with service principal:"
-    echo "  az login --service-principal -u \$ARM_CLIENT_ID -p \$ARM_CLIENT_SECRET --tenant \$ARM_TENANT_ID"
+    echo "Set your GitLab Personal Access Token:"
+    echo "  export GITLAB_TOKEN='your-token-here'"
     exit 1
 fi
 
-SUBSCRIPTION_NAME=$(az account show --query 'name' -o tsv)
-SUBSCRIPTION_ID=$(az account show --query 'id' -o tsv)
-log_info "Authenticated to subscription: $SUBSCRIPTION_NAME ($SUBSCRIPTION_ID)"
-
-# Validate Terraform is installed
-if ! command -v terraform &> /dev/null; then
-    log_error "Terraform is not installed"
-    echo "Install: https://www.terraform.io/downloads"
-    exit 1
+# Check if directory already exists
+if [ -d "$WORKSPACE_DIR" ]; then
+    log_warn "Directory '$WORKSPACE_DIR' already exists"
+    read -p "Remove and re-clone? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        rm -rf "$WORKSPACE_DIR"
+        log_info "Removed existing directory"
+    else
+        log_info "Using existing directory"
+        cd "$WORKSPACE_DIR"
+        git pull origin main || git pull origin master || log_warn "Could not pull latest changes"
+        cd ..
+    fi
 fi
 
-TERRAFORM_VERSION=$(terraform version -json | grep -o '"terraform_version":"[^"]*' | cut -d'"' -f4)
-log_info "Terraform found: v$TERRAFORM_VERSION"
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    # Inject token into URL for authentication
+    AUTHENTICATED_URL=$(echo "$GITLAB_REPO_URL" | sed "s|https://|https://oauth2:${GITLAB_TOKEN}@|")
+    
+    log_info "Cloning repository..."
+    if git clone "$AUTHENTICATED_URL" "$WORKSPACE_DIR"; then
+        log_info "✓ Repository cloned successfully to $WORKSPACE_DIR"
+        
+        # Remove credentials from git config
+        cd "$WORKSPACE_DIR"
+        git remote set-url origin "$GITLAB_REPO_URL"
+        cd ..
+    else
+        log_error "Failed to clone repository"
+        echo ""
+        echo "Possible issues:"
+        echo "  - Invalid GITLAB_TOKEN"
+        echo "  - Repository URL incorrect"
+        echo "  - No access to repository"
+        exit 1
+    fi
+fi
+
+# ============================================
+# Backend Configuration
+# ============================================
 
 # Backend configuration
-# Note: Update these values with output from configure-azure-backend.sh
 RESOURCE_GROUP="rg-terraform-backend"
 STORAGE_ACCOUNT="sttfbackend<unique>"  # Replace <unique> with actual value
 CONTAINER_NAME="terraform-state-${ENVIRONMENT}"
-STATE_KEY="${PROJECT_NAME}.tfstate"
+STATE_KEY="${PROJECT_NAME}/terraform.tfstate"
 
-log_info "Validating backend resources..."
-
-# Check if resource group exists
-if ! az group show --name "$RESOURCE_GROUP" &> /dev/null; then
-    log_error "Resource group '$RESOURCE_GROUP' not found"
-    echo "Create backend: cd scripts/setup && ./configure-azure-backend.sh"
-    exit 1
-fi
-log_info "Resource group found: $RESOURCE_GROUP"
-
-# Check if storage account exists
-if ! az storage account show --name "$STORAGE_ACCOUNT" --resource-group "$RESOURCE_GROUP" &> /dev/null; then
-    log_error "Storage account '$STORAGE_ACCOUNT' not found"
-    echo "Create backend: cd scripts/setup && ./configure-azure-backend.sh"
-    exit 1
-fi
-log_info "Storage account found: $STORAGE_ACCOUNT"
-
-# Check if container exists (create if not)
-if ! az storage container show --name "$CONTAINER_NAME" --account-name "$STORAGE_ACCOUNT" --auth-mode login &> /dev/null; then
-    log_warn "Container '$CONTAINER_NAME' not found, creating..."
-    az storage container create \
-        --name "$CONTAINER_NAME" \
-        --account-name "$STORAGE_ACCOUNT" \
-        --auth-mode login \
-        --output none
-    log_info "Container created: $CONTAINER_NAME"
-else
-    log_info "Container found: $CONTAINER_NAME"
-fi
-
-echo ""
-log_info "Initializing Terraform backend"
-echo "  Project: $PROJECT_NAME"
-echo "  Environment: $ENVIRONMENT"
-echo "  Container: $CONTAINER_NAME"
-echo "  State Key: $STATE_KEY"
+log_info "Configuring Terraform backend"
+log_info "  Project: $PROJECT_NAME"
+log_info "  Environment: $ENVIRONMENT"
+log_info "  Container: $CONTAINER_NAME"
+log_info "  State Key: $STATE_KEY"
 
 # Create backend configuration file
+cd "$WORKSPACE_DIR"
+
 cat > backend-config.tfbackend <<EOF
 resource_group_name  = "$RESOURCE_GROUP"
 storage_account_name = "$STORAGE_ACCOUNT"
@@ -145,41 +140,28 @@ container_name       = "$CONTAINER_NAME"
 key                  = "$STATE_KEY"
 EOF
 
-log_info "Generated backend-config.tfbackend"
+log_info "✓ Generated backend-config.tfbackend"
 
-# Validate Terraform configuration
-log_info "Validating Terraform configuration..."
+# ============================================
+# Terraform Initialization
+# ============================================
 
-# Change to workspace directory
-cd "$WORKSPACE_PATH" || {
-    log_error "Workspace path not found: $WORKSPACE_PATH"
-    exit 1
-}
-
-if ! terraform fmt -check &> /dev/null; then
-    log_warn "Terraform files are not formatted, formatting now..."
-    terraform fmt -recursive
-    log_info "Files formatted successfully"
-fi
-
-if ! terraform validate &> /dev/null; then
-    log_error "Terraform configuration is invalid"
-    terraform validate
-    exit 1
-fi
-log_info "Terraform configuration is valid"
-
-# Initialize Terraform with backend
-echo ""
-log_info "Running terraform init..."
-terraform init -backend-config=backend-config.tfbackend -reconfigure
-
-if [ $? -eq 0 ]; then
+log_info "Initializing Terraform..."
+if terraform init -backend-config=backend-config.tfbackend -reconfigure; then
     echo ""
-    log_info "Configuration completed successfully"
-    log_info "State location: $STORAGE_ACCOUNT/$CONTAINER_NAME/$STATE_KEY"
-    log_info "Workspace: $WORKSPACE_PATH"
+    log_info "=========================================="
+    log_info "Configuration completed successfully!"
+    log_info "=========================================="
+    log_info "Project:     $PROJECT_NAME"
+    log_info "Environment: $ENVIRONMENT"
+    log_info "Workspace:   $(pwd)"
+    log_info "State:       $STORAGE_ACCOUNT/$CONTAINER_NAME/$STATE_KEY"
+    echo ""
+    log_info "Next steps:"
+    echo "  cd $WORKSPACE_DIR"
+    echo "  terraform plan -var-file='environments/$ENVIRONMENT/terraform.tfvars'"
+    echo "  terraform apply -var-file='environments/$ENVIRONMENT/terraform.tfvars'"
 else
-    log_error "Failed to initialize backend"
+    log_error "Failed to initialize Terraform backend"
     exit 1
 fi

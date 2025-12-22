@@ -138,19 +138,21 @@ docker run -it --rm \
   -w /workspace \
   jenkins-terraform:latest bash
 
-# Inside container - authenticate
-./scripts/poc/azure-login.sh
+# Inside container - authenticate (use bash explicitly)
+bash scripts/poc/azure-login.sh
 
 # Verify authentication
 az account show
 
 # Test Terraform workflow
 cd terraform-project-template
-./scripts/poc/configure.sh myapp tst .
-./scripts/poc/deploy.sh myapp tst .
+bash ../scripts/poc/configure.sh myapp tst git@gitlab.com:yourgroup/terraform-project-template.git
+bash ../scripts/poc/deploy.sh myapp tst
 ```
 
-**Important**: Run `docker run` from the project root directory (`terraform-azure-project/`), not from inside `docker/` or `terraform-project-template/`. This ensures the volume mount (`-v $(pwd):/workspace`) maps the entire project including the `scripts/` folder.
+**Note**: Always use `bash scripts/poc/script.sh` instead of `./scripts/poc/script.sh` to avoid shebang and permission issues.
+
+**Important**: Run `docker run` from the project root directory (`terraform-azure-project/`).
 
 ## Security
 
