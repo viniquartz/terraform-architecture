@@ -35,7 +35,7 @@ FROM alpine:3.19
 LABEL maintainer="platform-team"
 LABEL version="2.0-optimized"
 
-# Install essentials + Azure CLI dependencies
+# Install essentials + Azure CLI build dependencies
 RUN apk add --no-cache \
     bash \
     git \
@@ -45,10 +45,15 @@ RUN apk add --no-cache \
     openjdk17-jre-headless \
     python3 \
     py3-pip \
-    && rm -rf /var/cache/apk/*
+    gcc \
+    musl-dev \
+    linux-headers \
+    python3-dev
 
-# Install Azure CLI (minimal)
-RUN pip3 install --no-cache-dir azure-cli --break-system-packages
+# Install Azure CLI via pip and cleanup in same layer
+RUN pip3 install --no-cache-dir --break-system-packages azure-cli && \
+    apk del gcc musl-dev linux-headers python3-dev && \
+    rm -rf /var/cache/apk/* /root/.cache /tmp/*
 
 # Copy binaries
 COPY --from=builder /tmp/terraform /usr/local/bin/terraform

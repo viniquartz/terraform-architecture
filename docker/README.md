@@ -119,21 +119,38 @@ Set in Jenkins Credentials Manager and use `azure-login.sh` script.
 ### Local Testing
 
 ```bash
+# Set credentials
 export ARM_CLIENT_ID="xxx"
 export ARM_CLIENT_SECRET="xxx"
 export ARM_SUBSCRIPTION_ID="xxx"
 export ARM_TENANT_ID="xxx"
 
-docker run --rm \
+# Navigate to project root (where scripts/ folder is)
+cd /path/to/terraform-azure-project
+
+# Start interactive container with volume mount
+docker run -it --rm \
   -e ARM_CLIENT_ID \
   -e ARM_CLIENT_SECRET \
   -e ARM_SUBSCRIPTION_ID \
   -e ARM_TENANT_ID \
   -v $(pwd):/workspace \
   -w /workspace \
-  jenkins-terraform:latest \
-  bash -c "./scripts/azure-login.sh"
+  jenkins-terraform:latest bash
+
+# Inside container - authenticate
+./scripts/poc/azure-login.sh
+
+# Verify authentication
+az account show
+
+# Test Terraform workflow
+cd terraform-project-template
+./scripts/poc/configure.sh myapp tst .
+./scripts/poc/deploy.sh myapp tst .
 ```
+
+**Important**: Run `docker run` from the project root directory (`terraform-azure-project/`), not from inside `docker/` or `terraform-project-template/`. This ensures the volume mount (`-v $(pwd):/workspace`) maps the entire project including the `scripts/` folder.
 
 ## Security
 
