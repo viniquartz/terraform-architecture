@@ -145,9 +145,14 @@ bash scripts/poc/azure-login.sh
 az account show
 
 # Test Terraform workflow
-cd terraform-project-template
-bash ../scripts/poc/configure.sh myapp tst git@gitlab.com:yourgroup/terraform-project-template.git
-bash ../scripts/poc/deploy.sh myapp tst
+bash scripts/poc/configure.sh myapp tst https://gitlab.com/yourgroup/terraform-project-template.git
+
+# Validate modules (optional)
+bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modules.git v1.0.0
+
+# Deploy infrastructure
+cd myapp
+bash ../scripts/poc/deploy.sh tst
 ```
 
 **Note**: Always use `bash scripts/poc/script.sh` instead of `./scripts/poc/script.sh` to avoid shebang and permission issues.
