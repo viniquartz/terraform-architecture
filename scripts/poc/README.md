@@ -1,29 +1,29 @@
 # POC Scripts
 
-Scripts para testes manuais e demonstração local do fluxo Terraform.
+Scripts for manual testing and local demonstration of Terraform workflow.
 
-**⚠️ Uso: Apenas para POC/testes locais. Pipelines CI/CD executam Terraform diretamente.**
+**Note: For POC/local testing only. CI/CD pipelines execute Terraform directly.**
 
-## Pré-requisitos
+## Prerequisites
 
-1. **Credenciais Azure** (Service Principal)
-2. **GitLab Token** (Personal Access Token com `read_repository`)
-3. **Backend Azure** configurado (Storage Account + Container)
-4. **Docker** (opcional - para ambiente isolado)
+1. **Azure Credentials** (Service Principal)
+2. **GitLab Token** (Personal Access Token with `read_repository`)
+3. **Azure Backend** configured (Storage Account + Container)
+4. **Docker** (optional - for isolated environment)
 
-## Scripts Disponíveis
+## Available Scripts
 
-| Script | Propósito |
-|--------|-----------|
-| `azure-login.sh` | Autentica Azure CLI com Service Principal |
-| `configure.sh` | Clona repositório e configura backend Terraform |
-| `validate-modules.sh` | Valida módulos Terraform |
-| `deploy.sh` | Gera plan e aplica mudanças |
-| `destroy.sh` | Gera destroy plan e remove recursos |
+| Script | Purpose |
+|--------|---------|
+| `azure-login.sh` | Authenticate Azure CLI with Service Principal |
+| `configure.sh` | Clone repository and configure Terraform backend |
+| `validate-modules.sh` | Validate Terraform modules |
+| `deploy.sh` | Generate plan and apply changes |
+| `destroy.sh` | Generate destroy plan and remove resources |
 
-## Fluxo Completo
+## Complete Workflow
 
-### 1. Configurar Variáveis de Ambiente
+### 1. Configure Environment Variables
 
 ```bash
 # Azure credentials (Service Principal)
@@ -36,41 +36,44 @@ export ARM_TENANT_ID="xxx"
 export GITLAB_TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"
 ```
 
-### 2. Autenticar Azure
+### 2. Authenticate Azure
 
 ```bash
 bash scripts/poc/azure-login.sh
 ```
 
-Valida credenciais e autentica Azure CLI.
+Validates credentials and authenticates Azure CLI.
 
-### 3. Configurar Projeto
+### 3. Configure Project
 
 ```bash
 bash scripts/poc/configure.sh myapp tst https://gitlab.com/yourgroup/terraform-project-template.git
 ```
 
-**Parâmetros:**
-- `myapp` - Nome do projeto
-- `tst` - Ambiente (tst/qlt/prd)
-- `<url>` - URL do repositório GitLab
+**Parameters:**
 
-**O que faz:**
-- Clona repositório do GitLab
-- Configura backend Terraform
-- Executa `terraform init`
+- `myapp` - Project name
+- `tst` - Environment (tst/qlt/prd)
+- `<url>` - GitLab repository URL
 
-**Cria:**
-- Diretório `myapp/` com código do projeto
-- Arquivo `myapp/backend-config.tfbackend`
+**What it does:**
 
-### 4. (Opcional) Validar Módulos
+- Clones repository from GitLab
+- Configures Terraform backend
+- Executes `terraform init`
+
+**Creates:**
+
+- Directory `myapp/` with project code
+- File `myapp/backend-config.tfbackend`
+
+### 4. (Optional) Validate Modules
 
 ```bash
 bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modules.git v1.0.0
 ```
 
-Valida todos os módulos Terraform do repositório.
+Validates all Terraform modules from repository.
 
 ### 5. Deploy
 
@@ -78,13 +81,14 @@ Valida todos os módulos Terraform do repositório.
 bash scripts/poc/deploy.sh myapp tst
 ```
 
-**O que faz:**
-1. Gera plan: `terraform plan -out=tfplan-tst.out`
-2. Mostra resumo do plan
-3. Solicita confirmação (`yes`)
-4. Aplica: `terraform apply tfplan-tst.out`
+**What it does:**
 
-**⚠️ Sempre requer confirmação manual (`yes`)**
+1. Generates plan: `terraform plan -out=tfplan-tst.out`
+2. Shows plan summary
+3. Requests confirmation (`yes`)
+4. Applies: `terraform apply tfplan-tst.out`
+
+**Note: Always requires manual confirmation (`yes`)**
 
 ### 6. Destroy
 
@@ -92,39 +96,40 @@ bash scripts/poc/deploy.sh myapp tst
 bash scripts/poc/destroy.sh myapp tst
 ```
 
-**O que faz:**
-1. Lista recursos atuais
-2. Gera destroy plan: `terraform plan -destroy -out=tfplan-destroy-tst.out`
-3. Mostra resumo
-4. Solicita confirmação (`yes`)
-5. Aplica: `terraform apply tfplan-destroy-tst.out`
+**What it does:**
 
-**⚠️ Sempre requer confirmação manual (`yes`)**
+1. Lists current resources
+2. Generates destroy plan: `terraform plan -destroy -out=tfplan-destroy-tst.out`
+3. Shows summary
+4. Requests confirmation (`yes`)
+5. Applies: `terraform apply tfplan-destroy-tst.out`
 
-## Exemplo Completo
+**Note: Always requires manual confirmation (`yes`)**
+
+## Complete Example
 
 ```bash
-# 1. Configure credenciais
+# 1. Configure credentials
 export ARM_CLIENT_ID="xxx"
 export ARM_CLIENT_SECRET="xxx"
 export ARM_SUBSCRIPTION_ID="xxx"
 export ARM_TENANT_ID="xxx"
 export GITLAB_TOKEN="glpat-xxx"
 
-# 2. Autentique Azure
+# 2. Authenticate Azure
 bash scripts/poc/azure-login.sh
 
-# 3. Configure projeto
+# 3. Configure project
 bash scripts/poc/configure.sh myapp tst https://gitlab.com/yourgroup/terraform-project-template.git
 
-# 4. (Opcional) Valide módulos
+# 4. (Optional) Validate modules
 bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modules.git v1.0.0
 
 # 5. Deploy
 bash scripts/poc/deploy.sh myapp tst
-# Responda: yes
+# Answer: yes
 
-# 6. Verifique
+# 6. Verify
 cd myapp
 terraform output
 terraform state list
@@ -132,10 +137,10 @@ terraform state list
 # 7. Destroy
 cd ..
 bash scripts/poc/destroy.sh myapp tst
-# Responda: yes
+# Answer: yes
 ```
 
-## Uso com Docker
+## Usage with Docker
 
 ```bash
 # Start container
@@ -149,13 +154,13 @@ docker run -it --rm \
   -w /workspace \
   jenkins-terraform:latest bash
 
-# Dentro do container
+# Inside container
 bash scripts/poc/azure-login.sh
 bash scripts/poc/configure.sh myapp tst https://gitlab.com/...
 bash scripts/poc/deploy.sh myapp tst
 ```
 
-## Detalhes dos Scripts
+## Script Details
 
 ### azure-login.sh
 
@@ -163,16 +168,18 @@ bash scripts/poc/deploy.sh myapp tst
 bash scripts/poc/azure-login.sh
 ```
 
-**Requer:**
+**Requires:**
+
 - `ARM_CLIENT_ID`
 - `ARM_CLIENT_SECRET`
 - `ARM_SUBSCRIPTION_ID`
 - `ARM_TENANT_ID`
 
-**Faz:**
-- Valida variáveis de ambiente
-- Autentica `az login` com Service Principal
-- Define subscription padrão
+**Actions:**
+
+- Validates environment variables
+- Authenticates `az login` with Service Principal
+- Sets default subscription
 
 ### configure.sh
 
@@ -180,21 +187,25 @@ bash scripts/poc/azure-login.sh
 bash scripts/poc/configure.sh <project-name> <environment> <gitlab-repo-url>
 ```
 
-**Exemplo:**
+**Example:**
+
 ```bash
 bash scripts/poc/configure.sh myapp tst https://gitlab.com/yourgroup/terraform-project-template.git
 ```
 
-**Requer:**
+**Requires:**
+
 - `GITLAB_TOKEN` environment variable
 
-**Faz:**
-1. Clona repositório GitLab em `<project-name>/`
-2. Gera `backend-config.tfbackend`
-3. Executa `terraform init`
+**Actions:**
 
-**Cria:**
-- `myapp/` - Diretório do projeto
+1. Clones GitLab repository to `<project-name>/`
+2. Generates `backend-config.tfbackend`
+3. Executes `terraform init`
+
+**Creates:**
+
+- `myapp/` - Project directory
 - `myapp/backend-config.tfbackend`
 - `myapp/.terraform/`
 
@@ -204,20 +215,22 @@ bash scripts/poc/configure.sh myapp tst https://gitlab.com/yourgroup/terraform-p
 bash scripts/poc/validate-modules.sh <gitlab-repo-url> [tag-or-branch]
 ```
 
-**Exemplos:**
+**Examples:**
+
 ```bash
 bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modules.git v1.0.0
 bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modules.git main
 ```
 
-**Faz:**
-- Clona repositório de módulos
-- Descobre todos os módulos
-- Valida cada módulo:
+**Actions:**
+
+- Clones modules repository
+- Discovers all modules
+- Validates each module:
   - `terraform fmt -check`
   - `terraform init`
   - `terraform validate`
-- Gera relatório de validação
+- Generates validation report
 
 ### deploy.sh
 
@@ -225,20 +238,22 @@ bash scripts/poc/validate-modules.sh https://gitlab.com/yourgroup/terraform-modu
 bash scripts/poc/deploy.sh <project-name> <environment>
 ```
 
-**Exemplo:**
+**Example:**
+
 ```bash
 bash scripts/poc/deploy.sh myapp tst
 ```
 
-**Faz:**
-1. Muda para diretório `<project-name>/`
-2. Executa `terraform plan -var-file=environments/<env>/terraform.tfvars -out=tfplan-<env>.out`
-3. Mostra resumo do plan
-4. Solicita confirmação: `Do you want to apply these changes? (yes/no):`
-5. Executa `terraform apply tfplan-<env>.out`
-6. Remove plan file após sucesso
+**Actions:**
 
-**⚠️ Sem --auto-approve: sempre requer `yes` manual**
+1. Changes to `<project-name>/` directory
+2. Executes `terraform plan -var-file=environments/<env>/terraform.tfvars -out=tfplan-<env>.out`
+3. Shows plan summary
+4. Requests confirmation: `Do you want to apply these changes? (yes/no):`
+5. Executes `terraform apply tfplan-<env>.out`
+6. Removes plan file after success
+
+**Note: No --auto-approve flag, always requires manual `yes`**
 
 ### destroy.sh
 
@@ -246,29 +261,31 @@ bash scripts/poc/deploy.sh myapp tst
 bash scripts/poc/destroy.sh <project-name> <environment>
 ```
 
-**Exemplo:**
+**Example:**
+
 ```bash
 bash scripts/poc/destroy.sh myapp tst
 ```
 
-**Faz:**
-1. Muda para diretório `<project-name>/`
-2. Lista recursos: `terraform state list`
-3. Executa `terraform plan -destroy -var-file=... -out=tfplan-destroy-<env>.out`
-4. Mostra resumo
-5. Solicita confirmação: `Type 'yes' to confirm destruction:`
-6. Executa `terraform apply tfplan-destroy-<env>.out`
-7. Remove plan file após sucesso
+**Actions:**
 
-**⚠️ Sem --auto-approve: sempre requer `yes` manual**
+1. Changes to `<project-name>/` directory
+2. Lists resources: `terraform state list`
+3. Executes `terraform plan -destroy -var-file=... -out=tfplan-destroy-<env>.out`
+4. Shows summary
+5. Requests confirmation: `Type 'yes' to confirm destruction:`
+6. Executes `terraform apply tfplan-destroy-<env>.out`
+7. Removes plan file after success
 
-## Notas Importantes
+**Note: No --auto-approve flag, always requires manual `yes`**
 
-1. **GitLab Token**: Necessário para clonar repositórios privados e baixar módulos
-2. **Confirmação manual**: Deploy e Destroy sempre pedem confirmação
-3. **Plan files**: Salvos como `tfplan-<env>.out` e `tfplan-destroy-<env>.out`
-4. **CI/CD**: Pipelines Jenkins não usam estes scripts, executam Terraform diretamente
-5. **State file**: Permanece no Azure Storage após destroy (para auditoria)
+## Important Notes
+
+1. **GitLab Token**: Required to clone private repositories and download modules
+2. **Manual confirmation**: Deploy and Destroy always require confirmation
+3. **Plan files**: Saved as `tfplan-<env>.out` and `tfplan-destroy-<env>.out`
+4. **CI/CD**: Jenkins pipelines do not use these scripts, they execute Terraform directly
+5. **State file**: Remains in Azure Storage after destroy (for audit purposes)
 - `backend-config.tfbackend`
 - `.terraform/`
 - `.terraform.lock.hcl`
