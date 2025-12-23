@@ -1,20 +1,19 @@
 #!/bin/bash
 #
 # Script: destroy.sh
-# Purpose: Destroy Terraform resources and clean up
+# Purpose: Destroy infrastructure provisioned by Terraform
 #
 # What it does:
-# - Changes to workspace directory
-# - Generates destruction plan
-# - Destroys all managed resources
-# - Provides option for auto-approval (CI/CD usage)
-# - Optionally deletes state file from backend
+# - Changes to project workspace directory
+# - Generates Terraform destroy plan to file
+# - Reviews resources to be destroyed
+# - Destroys infrastructure after confirmation
 #
-# Usage: ./destroy.sh <project-name> <environment> <workspace-path> [--auto-approve] [--delete-state]
-# Example: ./destroy.sh myapp tst ../../terraform-project-template
-#          ./destroy.sh myapp tst ../../terraform-project-template --auto-approve --delete-state
+# Usage: ./destroy.sh <project-name> <environment>
+# Example: ./destroy.sh myapp tst
+#          ./destroy.sh myapp prd
 #
-# Prerequisites: Run configure.sh first
+# Prerequisites: Infrastructure must be deployed
 #
 
 set -e
@@ -44,145 +43,136 @@ log_step() {
 
 PROJECT_NAME=${1}
 ENVIRONMENT=${2}
-WORKSPACE_PATH=${3:-"."}
-AUTO_APPROVE=""
-DELETE_STATE=false
-
-# Parse optional arguments
-for arg in "$@"; do
-    if [ "$arg" = "--auto-approve" ]; then
-        AUTO_APPROVE="--auto-approve"
-    fi
-    if [ "$arg" = "--delete-state" ]; then
-        DELETE_STATE=true
-    fi
-done
 
 if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ]; then
     log_error "Missing required parameters"
-    echo "Usage: $0 <project-name> <environment> [workspace-path] [--auto-approve] [--delete-state]"
-    echo "Example: $0 myapp tst"
-    echo "         $0 myapp tst ../../terraform-project-template --auto-approve"
-    echo "         $0 myapp tst ../../terraform-project-template --auto-approve --delete-state"
+    echo "Usage: $0 <project-name> <environment>"
     echo ""
-    echo "Options:"
-    echo "  --auto-approve  : Skip confirmation prompt (CI/CD mode)"
-    echo "  --delete-state  : Delete state file from backend after destroy"
+    echo "Examples:"
+    echo "  $0 myapp tst"
+    echo "  $0 myapp qlt"
+    echo "  $0 myapp prd"
     exit 1
 fi
+
+# Validate environment
+if [[ ! "$ENVIRONMENT" =~ ^(prd|qlt|tst)$ ]]; then
+    log_error "Invalid environment: $ENVIRONMENT"
+    echo "Valid environments: prd, qlt, tst"
+    exit 1
+fi
+
+WORKSPACE_DIR="$PROJECT_NAME"
+
+# Check if workspace directory exists
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    log_error "Workspace directory not found: $WORKSPACE_DIR"
+    echo ""
+    echo "Project may not be configured or already destroyed."
+    exit 1
+fi
+
+# Change to workspace directory
+cd "$WORKSPACE_DIR" || {
+    log_error "Failed to change to workspace directory: $WORKSPACE_DIR"
+    exit 1
+}
+
+# Check if main.tf exists
+if [ ! -f "main.tf" ]; then
+    log_error "main.tf not found in workspace directory"
+    exit 1
+fi
+
+# Check if tfvars exists
+TFVARS_FILE="environments/${ENVIRONMENT}/terraform.tfvars"
+if [ ! -f "$TFVARS_FILE" ]; then
+    log_error "Terraform variables file not found: $TFVARS_FILE"
+    exit 1
+fi
+
+DESTROY_PLAN_FILE="tfplan-destroy-${ENVIRONMENT}.out"
 
 echo "========================================"
 echo "Terraform Destroy Workflow"
 echo "========================================"
-echo "Project: $PROJECT_NAME"
+echo "Project:     $PROJECT_NAME"
 echo "Environment: $ENVIRONMENT"
-echo "Workspace: $WORKSPACE_PATH"
-echo "Auto-approve: ${AUTO_APPROVE:-false}"
-echo "Delete state: $DELETE_STATE"
+echo "Workspace:   $(pwd)"
+echo "Variables:   $TFVARS_FILE"
+echo "Plan output: $DESTROY_PLAN_FILE"
 echo "========================================"
 echo ""
-log_warn "THIS WILL DESTROY ALL RESOURCES!"
+log_warn "⚠️  WARNING: This will DESTROY all infrastructure!"
 echo ""
 
-# Prompt for confirmation if not auto-approved
-if [ -z "$AUTO_APPROVE" ]; then
-    read -p "Are you sure you want to destroy all resources? (type 'yes' to confirm): " confirmation
-    if [ "$confirmation" != "yes" ]; then
-        log_info "Destroy cancelled by user"
-        exit 0
-    fi
+# Step 1: Show current state
+echo ""
+log_step "[STEP 1/4] Current infrastructure state"
+log_info "Resources currently managed:"
+terraform state list || log_warn "No state file found"
+
+# Step 2: Generate destroy plan
+echo ""
+log_step "[STEP 2/4] Generating destroy plan..."
+log_info "Running terraform plan -destroy..."
+
+if terraform plan -destroy \
+    -var-file="$TFVARS_FILE" \
+    -out="$DESTROY_PLAN_FILE"; then
+    log_info "✓ Destroy plan generated successfully"
+else
+    log_error "Failed to generate destroy plan"
+    exit 1
 fi
 
-# Change to workspace directory
-cd "$WORKSPACE_PATH" || {
-    log_error "Workspace path not found: $WORKSPACE_PATH"
-    exit 1
-}
-
-# Step 1: Generate destroy plan
+# Step 3: Show plan summary
 echo ""
-log_step "[STEP 1/2] Generating destroy plan..."
-terraform plan -destroy \
-    -var-file="environments/${ENVIRONMENT}/terraform.tfvars" \
-    -out=tfplan-destroy
-
-log_info "Destroy plan generated"
+log_step "[STEP 3/4] Destroy Plan Summary"
 echo ""
-log_warn "Resources to be destroyed:"
-terraform show -json tfplan-destroy | grep -o '"change":{"actions":\["delete"\]}' | wc -l | xargs echo "  Total resources:"
-
-# Step 2: Destroy resources
+terraform show -no-color "$DESTROY_PLAN_FILE" | grep -E "Plan:|No changes" || true
 echo ""
-log_step "[STEP 2/2] Destroying resources..."
 
-if [ -n "$AUTO_APPROVE" ]; then
-    log_info "Auto-approval enabled (CI/CD mode)"
-    terraform apply -auto-approve tfplan-destroy
+# Step 4: Confirm and destroy
+echo ""
+log_step "[STEP 4/4] Destroy infrastructure"
+log_warn "⚠️  DANGER: This will permanently delete all resources!"
+log_warn "Review the destroy plan above carefully"
+echo ""
+read -p "Type 'yes' to confirm destruction: " -r
+echo
+
+if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+    log_warn "Destruction cancelled by user"
+    log_info "Destroy plan file saved: $DESTROY_PLAN_FILE"
+    log_info "To destroy later: terraform apply $DESTROY_PLAN_FILE"
+    exit 0
+fi
+
+log_info "Applying destroy plan..."
+if terraform apply "$DESTROY_PLAN_FILE"; then
+    log_info "✓ Infrastructure destroyed successfully"
+    
+    # Clean up plan file after successful destroy
+    rm -f "$DESTROY_PLAN_FILE"
+    log_info "Destroy plan file removed: $DESTROY_PLAN_FILE"
 else
-    log_info "Manual approval required"
-    terraform apply tfplan-destroy
+    log_error "Failed to destroy infrastructure"
+    log_info "Destroy plan file preserved: $DESTROY_PLAN_FILE"
+    exit 1
 fi
 
 # Completion
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "========================================"
-    log_info "Resources destroyed successfully"
-    echo "========================================"
-    
-    # Delete state file if requested
-    if [ "$DELETE_STATE" = true ]; then
-        echo ""
-        log_step "Deleting state file from backend..."
-        
-        # Read backend config
-        if [ ! -f "backend-config.tfbackend" ]; then
-            log_error "backend-config.tfbackend not found"
-            exit 1
-        fi
-        
-        source <(grep = backend-config.tfbackend | sed 's/ *= */=/g' | sed 's/"//g')
-        
-        log_info "Deleting state: $storage_account_name/$container_name/$key"
-        
-        if az storage blob delete \
-            --account-name "$storage_account_name" \
-            --container-name "$container_name" \
-            --name "$key" \
-            --auth-mode login \
-            --output none 2>/dev/null; then
-            log_info "State file deleted successfully"
-        else
-            log_warn "State file not found or already deleted"
-        fi
-    fi
-    
-    # Clean up local files
-    echo ""
-    log_info "Cleaning up local files..."
-    rm -f tfplan-destroy
-    rm -f backend-config.tfbackend
-    rm -rf .terraform
-    rm -f .terraform.lock.hcl
-    log_info "Local files cleaned"
-    
-    echo ""
-    echo "========================================"
-    log_info "Cleanup completed"
-    echo "========================================"
-    echo "Project: $PROJECT_NAME"
-    echo "Environment: $ENVIRONMENT"
-    echo ""
-    if [ "$DELETE_STATE" = true ]; then
-        echo "State file deleted from backend"
-    else
-        echo "State file preserved in backend"
-        echo "To delete state: ./destroy.sh $PROJECT_NAME $ENVIRONMENT $WORKSPACE_PATH --delete-state"
-    fi
-    echo "========================================"
-else
-    echo ""
-    log_error "Destroy failed"
-    echo "Check errors above and retry"
-    exit 1
-fi
+echo ""
+echo "========================================"
+log_info "Infrastructure destroyed successfully!"
+echo "========================================"
+echo "Project:     $PROJECT_NAME"
+echo "Environment: $ENVIRONMENT"
+echo ""
+log_info "State file remains in Azure Storage for audit purposes."
+echo ""
+echo "To clean up workspace directory:"
+echo "  cd .."
+echo "  rm -rf $WORKSPACE_DIR"
+echo "========================================"

@@ -4,16 +4,17 @@
 # Purpose: Generate Terraform plan and apply changes
 #
 # What it does:
-# - Changes to workspace directory
-# - Generates Terraform execution plan
-# - Applies changes to Azure infrastructure
-# - Provides option for auto-approval (CI/CD usage)
+# - Changes to project workspace directory
+# - Generates Terraform execution plan to file
+# - Reviews plan output
+# - Applies plan after user confirmation
 #
-# Usage: ./deploy.sh <project-name> <environment> <workspace-path> [--auto-approve]
-# Example: ./deploy.sh myapp tst ../../terraform-project-template
-#          ./deploy.sh myapp prd ../../terraform-project-template --auto-approve
+# Usage: ./deploy.sh <project-name> <environment>
+# Example: ./deploy.sh myapp tst
+#          ./deploy.sh myapp prd
 #
-# Prerequisites: Run configure.sh first
+# Prerequisites: 
+# - Run configure.sh first
 #
 
 set -e
@@ -43,68 +44,127 @@ log_step() {
 
 PROJECT_NAME=${1}
 ENVIRONMENT=${2}
-WORKSPACE_PATH=${3:-"."}
-AUTO_APPROVE=${4}
 
 if [ -z "$PROJECT_NAME" ] || [ -z "$ENVIRONMENT" ]; then
     log_error "Missing required parameters"
-    echo "Usage: $0 <project-name> <environment> [workspace-path] [--auto-approve]"
-    echo "Example: $0 myapp prd"
-    echo "         $0 myapp tst ../../terraform-project-template --auto-approve"
+    echo "Usage: $0 <project-name> <environment>"
+    echo ""
+    echo "Examples:"
+    echo "  $0 myapp tst"
+    echo "  $0 myapp qlt"
+    echo "  $0 myapp prd"
     exit 1
 fi
+
+# Validate environment
+if [[ ! "$ENVIRONMENT" =~ ^(prd|qlt|tst)$ ]]; then
+    log_error "Invalid environment: $ENVIRONMENT"
+    echo "Valid environments: prd, qlt, tst"
+    exit 1
+fi
+
+WORKSPACE_DIR="$PROJECT_NAME"
+
+# Check if workspace directory exists
+if [ ! -d "$WORKSPACE_DIR" ]; then
+    log_error "Workspace directory not found: $WORKSPACE_DIR"
+    echo ""
+    echo "Run configure.sh first:"
+    echo "  bash scripts/poc/configure.sh $PROJECT_NAME $ENVIRONMENT <gitlab-repo-url>"
+    exit 1
+fi
+
+# Change to workspace directory
+cd "$WORKSPACE_DIR" || {
+    log_error "Failed to change to workspace directory: $WORKSPACE_DIR"
+    exit 1
+}
+
+# Check if main.tf exists
+if [ ! -f "main.tf" ]; then
+    log_error "main.tf not found in workspace directory"
+    exit 1
+fi
+
+# Check if tfvars exists
+TFVARS_FILE="environments/${ENVIRONMENT}/terraform.tfvars"
+if [ ! -f "$TFVARS_FILE" ]; then
+    log_error "Terraform variables file not found: $TFVARS_FILE"
+    exit 1
+fi
+
+PLAN_FILE="tfplan-${ENVIRONMENT}.out"
 
 echo "========================================"
 echo "Terraform Deploy Workflow"
 echo "========================================"
-echo "Project: $PROJECT_NAME"
+echo "Project:     $PROJECT_NAME"
 echo "Environment: $ENVIRONMENT"
-echo "Workspace: $WORKSPACE_PATH"
-echo "Auto-approve: ${AUTO_APPROVE:-false}"
+echo "Workspace:   $(pwd)"
+echo "Variables:   $TFVARS_FILE"
+echo "Plan output: $PLAN_FILE"
 echo "========================================"
-
-# Change to workspace directory
-cd "$WORKSPACE_PATH" || {
-    log_error "Workspace path not found: $WORKSPACE_PATH"
-    exit 1
-}
 
 # Step 1: Generate plan
 echo ""
-log_step "[STEP 1/2] Generating execution plan..."
-terraform plan \
-    -var-file="environments/${ENVIRONMENT}/terraform.tfvars" \
-    -out=tfplan
+log_step "[STEP 1/3] Generating execution plan..."
+log_info "Running terraform plan..."
 
-# Step 2: Apply changes
-echo ""
-log_step "[STEP 2/2] Applying changes..."
-if [ "$AUTO_APPROVE" = "--auto-approve" ]; then
-    log_info "Auto-approval enabled (CI/CD mode)"
-    terraform apply -auto-approve tfplan
+if terraform plan \
+    -var-file="$TFVARS_FILE" \
+    -out="$PLAN_FILE"; then
+    log_info "✓ Plan generated successfully"
 else
-    log_info "Manual approval required"
-    terraform apply tfplan
+    log_error "Failed to generate plan"
+    exit 1
+fi
+
+# Step 2: Show plan summary
+echo ""
+log_step "[STEP 2/3] Plan Summary"
+echo ""
+terraform show -no-color "$PLAN_FILE" | grep -E "Plan:|No changes" || true
+echo ""
+
+# Step 3: Confirm and apply
+echo ""
+log_step "[STEP 3/3] Apply changes"
+log_warn "Review the plan above carefully"
+echo ""
+read -p "Do you want to apply these changes? (yes/no): " -r
+echo
+
+if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+    log_warn "Deployment cancelled by user"
+    log_info "Plan file saved: $PLAN_FILE"
+    log_info "To apply later: terraform apply $PLAN_FILE"
+    exit 0
+fi
+
+log_info "Applying plan..."
+if terraform apply "$PLAN_FILE"; then
+    log_info "✓ Changes applied successfully"
+    
+    # Clean up plan file after successful apply
+    rm -f "$PLAN_FILE"
+    log_info "Plan file removed: $PLAN_FILE"
+else
+    log_error "Failed to apply changes"
+    log_info "Plan file preserved: $PLAN_FILE"
+    exit 1
 fi
 
 # Completion
-if [ $? -eq 0 ]; then
-    echo ""
-    echo "========================================"
-    log_info "Deployment completed successfully"
-    echo "========================================"
-    echo "Project: $PROJECT_NAME"
-    echo "Environment: $ENVIRONMENT"
-    echo ""
-    echo "Useful commands:"
-    echo "  terraform output          - View all outputs"
-    echo "  terraform show            - Show current state"
-    echo "  terraform state list      - List resources"
-    echo "  ./destroy.sh $PROJECT_NAME $ENVIRONMENT $WORKSPACE_PATH - Destroy resources"
-    echo "========================================"
-else
-    echo ""
-    log_error "Deployment failed"
-    echo "Check errors above and retry"
-    exit 1
-fi
+echo ""
+echo "========================================"
+log_info "Deployment completed successfully!"
+echo "========================================"
+echo "Project:     $PROJECT_NAME"
+echo "Environment: $ENVIRONMENT"
+echo ""
+echo "Useful commands:"
+echo "  terraform output                              - View all outputs"
+echo "  terraform show                                - Show current state"
+echo "  terraform state list                          - List resources"
+echo "  bash ../scripts/poc/destroy.sh $PROJECT_NAME $ENVIRONMENT - Destroy resources"
+echo "========================================"
