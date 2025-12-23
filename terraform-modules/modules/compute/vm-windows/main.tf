@@ -26,6 +26,7 @@ resource "azurerm_network_interface" "main" {
 
 resource "azurerm_windows_virtual_machine" "main" {
   name                = var.name
+  computer_name       = var.computer_name != "" ? var.computer_name : substr(replace(regex("_vm_(.*)$", var.name)[0] != "" ? "azrvm${regex("_vm_(.*)$", var.name)[0]}" : replace(var.name, "_", ""), "_", ""), 0, 15)
   resource_group_name = var.resource_group_name
   location            = var.location
   size                = var.vm_size

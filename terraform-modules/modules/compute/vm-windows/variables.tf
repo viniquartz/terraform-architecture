@@ -3,6 +3,12 @@ variable "name" {
   type        = string
 }
 
+variable "computer_name" {
+  description = "Computer name (hostname). If not specified, auto-generated from name suffix after '_vm_'. Example: azr_tst_proj_weu_vm_app01 -> azrvmapp01. Max 15 chars"
+  type        = string
+  default     = ""
+}
+
 variable "resource_group_name" {
   description = "Resource Group name"
   type        = string

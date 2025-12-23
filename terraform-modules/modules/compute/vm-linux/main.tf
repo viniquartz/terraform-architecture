@@ -26,6 +26,7 @@ resource "azurerm_network_interface" "main" {
 
 resource "azurerm_linux_virtual_machine" "main" {
   name                            = var.name
+  computer_name                   = var.computer_name != "" ? var.computer_name : substr(replace(var.name, "_", ""), 0, 64)
   resource_group_name             = var.resource_group_name
   location                        = var.location
   size                            = var.vm_size
