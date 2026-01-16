@@ -1,224 +1,344 @@
-# Terraform Pipelines - Quick Guide
+# Jenkins Pipelines - Terraform Azure
 
-This directory contains all Jenkins pipelines (Shared Library) for Terraform infrastructure management.
+4 pipelines Jenkins prontas para gerenciar infraestrutura Terraform no Azure.
 
-## Available Pipelines
+## 📋 Pipelines Disponíveis
 
-### 1. terraform-deploy-pipeline.groovy
-**Main pipeline for resource deployment and destroy**
-
-- **Execution:** Manual only - no automatic triggers
-- **Parameters:** PROJECT_NAME, ENVIRONMENT, ACTION, GIT_BRANCH, GIT_REPO_URL
-- **Backend:** Dynamic configuration (injected at runtime)
-- **Credentials:** Environment-specific Service Principals (azure-sp-{env}-*)
-- **Security:** Trivy security scanning (SARIF output)
-- **Cost Analysis:** Infracost cost estimation (HTML reports)
-- **Approvals:** Jenkins-based (DevOps Team + Security Team for PRD)
-- **Usage:** Deploy/destroy any project in any environment
-
-### 2. terraform-validation-pipeline.groovy
-**Code validation for Pull Requests**
-
-- **Execution:** Manual only - no automatic triggers
-- **Parameters:** GIT_REPO_URL, GIT_BRANCH
-- **Validation:** Format check, syntax validation, security scan (Trivy), cost analysis (Infracost)
-- **Usage:** Run before merging code changes
-
-### 3. terraform-drift-detection-pipeline.groovy
-**Scheduled drift detection across all projects**
-
-- **Execution:** Automatic (cron: every 4 hours) - ONLY pipeline with automatic trigger
-- **Parameters:** PROJECTS_LIST (comma-separated)
-- **Backend:** Dynamic configuration per environment
-- **Credentials:** Environment-specific Service Principals
-- **Scope:** All projects in all environments (prd, qlt, tst)
-- **Usage:** Continuous infrastructure drift monitoring
-
-### 4. terraform-modules-validation-pipeline.groovy
-**Validation for Terraform modules repository**
-
-- **Execution:** Manual only - no automatic triggers
-- **Parameters:** MODULE_REPO_URL, GIT_BRANCH
-- **Validation:** Format, syntax, security (Trivy), cost analysis (Infracost), examples validation
-- **Quality:** Checks for README, validates example code
-- **Usage:** Quality gate for modules before versioning
-
-## Phase 2 Features (Commented Out)
-
-All pipelines have Phase 2 features commented out and ready for future implementation:
-
-### sendTeamsNotification.groovy
-Sends formatted notifications to Microsoft Teams (Phase 2).
-
-**Future notifications:**
-- Deploy started/completed
-- Pending approvals
-- Drift detected
-- Validation results
-
-### sendDynatraceEvent.groovy
-Sends events and metrics to Dynatrace (Phase 2).
-
-**Future metrics:**
-- Pipeline duration and status
-- Drift detection events
-- Deployment tracking
-
-## Jenkins Installation
-
-### 1. Create Jenkins Shared Library
-
-In Jenkins: Manage Jenkins → Configure System → Global Pipeline Libraries
-
-- Name: `terraform-pipelines`
-- Default version: `main`
-- Project repository: Your Jenkins shared library repository
-- Credentials: `git-credentials`
-
-### 2. Shared Library Repository Structure
-
-Place these pipeline files in the `vars/` directory:
-
-```text
-jenkins-shared-library/
-├── vars/
-│   ├── terraformDeploy.groovy
-│   ├── terraformValidation.groovy
-│   ├── terraformDriftDetection.groovy
-│   ├── terraformModulesValidation.groovy
-│   ├── sendTeamsNotification.groovy      (Phase 2)
-│   └── sendDynatraceEvent.groovy         (Phase 2)
-└── README.md
-```
-
-### 3. Configure Credentials in Jenkins
-
-**Required Now:**
-
-Manage Jenkins → Credentials → Add Credentials (Secret Text)
-
-**Per Environment (PRD, QLT, TST):**
-- `azure-sp-prd-client-id` / `azure-sp-qlt-client-id` / `azure-sp-tst-client-id`
-- `azure-sp-prd-client-secret` / `azure-sp-qlt-client-secret` / `azure-sp-tst-client-secret`
-- `azure-sp-prd-subscription-id` / `azure-sp-qlt-subscription-id` / `azure-sp-tst-subscription-id`
-- `azure-sp-prd-tenant-id` / `azure-sp-qlt-tenant-id` / `azure-sp-tst-tenant-id`
-
-**Git Access:**
-- `git-credentials`: Git access token or SSH key
-
-**Phase 2:**
-- `teams-webhook-url`: Microsoft Teams Incoming Webhook
-- `dynatrace-url`: Dynatrace environment URL
-- `dynatrace-api-token`: Dynatrace API token
-
-### 4. Create Jenkins Jobs
-
-#### Job 1: Terraform Deploy (Parameterized Job)
-
-```groovy
-@Library('terraform-pipelines') _
-
-terraformDeploy()
-```
-
-Configuration: Pipeline job with parameters (manual execution only)
-
-#### Job 2: Terraform Validation (Pipeline Job)
-
-```groovy
-@Library('terraform-pipelines') _
-
-terraformValidation()
-```
-
-Configuration: Pipeline job with parameters (manual execution only)
-
-#### Job 3: Terraform Drift Detection (Pipeline Job)
-
-```groovy
-@Library('terraform-pipelines') _
-
-terraformDriftDetection()
-```
-
-Configuration: Pipeline job with cron trigger (H */4 * * *)
-
-#### Job 4: Terraform Modules Validation (Pipeline Job)
-
-```groovy
-@Library('terraform-pipelines') _
-
-terraformModulesValidation()
-```
-
-Configuration: Pipeline job with parameters (manual execution only)
-
-## Security
-
-### Approval Permissions
-
-Configure in Jenkins: Manage Jenkins → Configure Global Security → Authorization
-
-**Role-Based Strategy:**
-
-- **devops-team**: Can approve TST, QLT, PRD deployments
-- **security-team**: Can approve PRD deployments (additional layer)
-
-Assign users to these roles in Jenkins authorization matrix.
-
-## Usage Examples
-
-### Deploy a Project
-
-1. Open "Terraform Deploy" job in Jenkins
-2. Click "Build with Parameters"
-3. Fill parameters:
-   - PROJECT_NAME: `power-bi`
-   - ENVIRONMENT: `prd`
-   - ACTION: `plan`
-   - GIT_BRANCH: `main`
-   - GIT_REPO_URL: `git@github.com:org/power-bi.git`
-4. Click "Build" - pipeline runs plan
-5. Review plan output
-6. Run again with ACTION: `apply`
-7. Approve when prompted (devops-team + security-team for PRD)
-8. Infrastructure deployed
-
-### Validate Code Before Merge
-
-1. Open "Terraform Validation" job
-2. Click "Build with Parameters"
-3. Fill parameters:
-   - GIT_REPO_URL: `git@github.com:org/my-project.git`
-   - GIT_BRANCH: `feature/my-changes`
-4. Click "Build"
-5. Review validation results (format, syntax, security)
-6. Fix any issues before merging
-
-### Check Drift Detection Results
-
-1. Open "Terraform Drift Detection" job
-2. View last execution results
-3. Check console output for drift warnings
-4. Pipeline runs automatically every 4 hours
-5. Update PROJECTS_LIST parameter as needed
-
-## Phase 2 Features
-
-When ready to implement notifications and monitoring:
-
-1. Uncomment Teams/Dynatrace code in pipeline files
-2. Add webhook URLs and API tokens to Jenkins credentials
-3. Configure Dynatrace dashboards
-4. Test notifications
-
-## Additional Documentation
-
-- [Setup Guide](../docs/SETUP.md)
-- [Backend Configuration](../docs/BACKEND.md)
-- [Architecture Plan](../docs/architecture-plan.md)
-- [Docker Image](../docker/README.md)
+| Pipeline | Arquivo | Trigger | Aprovação | Uso |
+|----------|---------|---------|-----------|-----|
+| **Deploy** | `terraform-deploy-job.groovy` | Manual | Sim | Deploy/destroy recursos |
+| **Validation** | `terraform-validation-job.groovy` | Manual | Não | Validar PRs |
+| **Drift Detection** | `terraform-drift-detection-job.groovy` | Auto (4h) | Não | Detectar drift |
+| **Modules** | `terraform-modules-validation-job.groovy` | Manual | Não | Validar módulos |
 
 ---
 
-**Last Updated:** December 2025
+## 🚀 Setup Rápido (15 minutos)
+
+### 1. Configurar Credentials no Jenkins
+
+**Manage Jenkins → Credentials → Add Credentials**
+
+Para cada ambiente (prd, qlt, tst):
+
+```
+Tipo: Secret text
+
+azure-sp-prd-client-id
+azure-sp-prd-client-secret
+azure-sp-prd-subscription-id
+azure-sp-prd-tenant-id
+
+azure-sp-qlt-client-id
+azure-sp-qlt-client-secret
+azure-sp-qlt-subscription-id
+azure-sp-qlt-tenant-id
+
+azure-sp-tst-client-id
+azure-sp-tst-client-secret
+azure-sp-tst-subscription-id
+azure-sp-tst-tenant-id
+```
+
+Mais:
+
+```
+Tipo: Username with password
+ID: git-credentials
+Username: seu-usuario-git
+Password: seu-PAT-token
+```
+
+### 2. Configurar Docker Agent
+
+**Manage Jenkins → Clouds → Docker**
+
+```
+Cloud name: docker-agents
+Docker Host URI: unix:///var/run/docker.sock
+
+Agent Template:
+  Label: terraform-agent
+  Docker Image: jenkins-terraform:latest
+  (use a image do diretório /docker)
+```
+
+### 3. Criar Jobs no Jenkins
+
+Para cada pipeline:
+
+1. **New Item** → Nome (ex: `terraform-deploy`) → **Pipeline**
+2. **Pipeline script:** Copie o conteúdo do arquivo `.groovy` correspondente
+3. Marque: ☑ **Use Groovy Sandbox**
+4. **Save**
+
+---
+
+## 📖 Detalhes das Pipelines
+
+### 1. Deploy Pipeline
+
+**Arquivo:** `terraform-deploy-job.groovy`
+
+**O que faz:**
+- Deploy de recursos Terraform
+- Destroy de recursos
+- Plan para preview
+
+**Stages:**
+1. Initialize
+2. Checkout (Git)
+3. Validate (format, syntax)
+4. Security Scan (Trivy)
+5. Cost Estimation (Infracost)
+6. Terraform Init (backend Azure)
+7. Terraform Plan
+8. **Approval** ⏸️ (se apply/destroy)
+9. Terraform Apply/Destroy
+
+**Parâmetros:**
+- `PROJECT_NAME`: Nome do projeto
+- `ENVIRONMENT`: prd, qlt ou tst
+- `ACTION`: plan, apply ou destroy
+- `GIT_BRANCH`: Branch do Git (default: main)
+- `GIT_REPO_URL`: URL do repositório
+
+**Aprovações:**
+- TST/QLT: `devops-team` (2 horas)
+- PRD: `devops-team` + `security-team` (4 horas)
+
+**Artifacts:**
+- tfplan JSON
+- Trivy report (XML)
+- Infracost report (HTML)
+
+---
+
+### 2. Validation Pipeline
+
+**Arquivo:** `terraform-validation-job.groovy`
+
+**O que faz:**
+- Valida código antes de merge
+- Security scan
+- Cost estimation
+
+**Stages:**
+1. Checkout
+2. Format Check
+3. Terraform Validate
+4. Security Scan (Trivy)
+5. Cost Estimation (Infracost)
+
+**Parâmetros:**
+- `GIT_REPO_URL`: URL do repositório
+- `GIT_BRANCH`: Branch a validar
+
+**Quando usar:**
+- Antes de merge de PR
+- Code review
+- Validação rápida
+
+**Artifacts:**
+- Trivy report (XML, SARIF)
+- Infracost report (JSON, HTML)
+
+---
+
+### 3. Drift Detection Pipeline
+
+**Arquivo:** `terraform-drift-detection-job.groovy`
+
+**O que faz:**
+- Detecta mudanças manuais na infraestrutura
+- Roda automaticamente a cada 4 horas
+- Verifica todos os projetos e ambientes
+
+**Stages:**
+1. Para cada projeto/ambiente:
+   - Checkout
+   - Init com backend
+   - Plan com detailed-exitcode
+   - Detecta drift (exit code 2)
+
+**Parâmetros:**
+- `PROJECTS_LIST`: Projetos separados por vírgula (ex: `power-bi,digital-cabin`)
+- `GIT_ORG`: Organização/usuário Git
+
+**Trigger:**
+- **Automático:** `H */4 * * *` (a cada 4 horas)
+- Também pode executar manualmente
+
+**Output:**
+- Status: SUCCESS (sem drift) ou UNSTABLE (drift detectado)
+- Artifacts: drift-plan JSON para cada projeto com drift
+
+**⚠️ Importante:** Ajuste `PROJECTS_LIST` com seus projetos reais
+
+---
+
+### 4. Modules Validation Pipeline
+
+**Arquivo:** `terraform-modules-validation-job.groovy`
+
+**O que faz:**
+- Valida módulos Terraform compartilhados
+- Verifica exemplos e documentação
+- Quality checks
+
+**Stages:**
+1. Checkout
+2. Validate All Modules (format, init, validate)
+3. Security Scan (Trivy)
+4. Cost Analysis (exemplos)
+5. Validate Examples
+6. Version Check
+7. Quality Report
+
+**Parâmetros:**
+- `MODULE_REPO_URL`: URL do repositório de módulos
+- `GIT_BRANCH`: Branch a validar
+
+**Quando usar:**
+- Antes de versionar módulo
+- PR em repositório de módulos
+- Quality gate
+
+**Verifica:**
+- Format e sintaxe
+- Presença de README.md
+- Presença de examples/
+- variables.tf, outputs.tf
+- Validação de exemplos
+
+---
+
+## 🔄 Fluxo de Trabalho
+
+```
+Developer cria branch
+    ↓
+[validation] ← Validar código
+    ↓
+PR aprovado → Merge
+    ↓
+[deploy TST] ← Deploy manual
+    ↓
+Testes
+    ↓
+[deploy QLT] ← Deploy manual
+    ↓
+Validação
+    ↓
+[deploy PRD] ← Deploy manual + Dupla aprovação
+    ↓
+Produção
+
+[drift-detection] ← Roda automático a cada 4h
+```
+
+---
+
+## 🛠️ Ferramentas Necessárias
+
+As pipelines usam estas ferramentas (incluídas no Docker image):
+
+- **Terraform** - IaC engine
+- **Trivy** - Security scanning
+- **Infracost** - Cost estimation
+- **Azure CLI** - Azure authentication
+
+**Docker Image:** Use o Dockerfile em `/docker` para criar a image `jenkins-terraform:latest`
+
+---
+
+## 🔧 Troubleshooting
+
+### Erro: "No such label: terraform-agent"
+**Solução:** Configure o Docker agent com label `terraform-agent`
+
+### Erro: "Credentials not found: azure-sp-tst-client-id"
+**Solução:** Adicione as credentials no Jenkins (veja seção Setup)
+
+### Erro: "terraform: command not found"
+**Solução:** Use o Docker image ou instale Terraform no agent
+
+### Erro: "Permission denied" no Git
+**Solução:** Verifique a credential `git-credentials` no Jenkins
+
+### Pipeline de Drift está falhando
+**Solução:** Ajuste `GIT_ORG` e `PROJECTS_LIST` com valores corretos
+
+---
+
+## 📊 Exemplos de Uso
+
+### Deploy em TST
+
+```
+Job: terraform-deploy
+Parâmetros:
+  PROJECT_NAME: power-bi
+  ENVIRONMENT: tst
+  ACTION: apply
+  GIT_BRANCH: main
+  GIT_REPO_URL: git@github.com:org/power-bi.git
+```
+
+### Validar PR
+
+```
+Job: terraform-validation
+Parâmetros:
+  GIT_REPO_URL: git@github.com:org/power-bi.git
+  GIT_BRANCH: feature/new-vm
+```
+
+### Verificar Drift
+
+```
+Job: terraform-drift-detection
+Parâmetros:
+  PROJECTS_LIST: power-bi,digital-cabin,data-lake
+  GIT_ORG: your-org
+```
+
+---
+
+## 🔐 Segurança
+
+- ✅ Credentials isoladas por ambiente
+- ✅ Approval gates obrigatórios
+- ✅ Dupla aprovação para PRD
+- ✅ Security scan em todos os deploys
+- ✅ Auditoria completa via logs
+
+---
+
+## 📁 Arquivos
+
+```
+pipelines/
+├── README.md                                    ← Este arquivo
+├── terraform-deploy-job.groovy                  ← Deploy/Destroy
+├── terraform-validation-job.groovy              ← Validação
+├── terraform-drift-detection-job.groovy         ← Drift detection
+└── terraform-modules-validation-job.groovy      ← Modules validation
+```
+
+---
+
+## 🎯 Checklist de Implementação
+
+- [ ] Credentials configuradas no Jenkins
+- [ ] Docker agent configurado
+- [ ] Job `terraform-deploy` criado
+- [ ] Job `terraform-validation` criado
+- [ ] Job `terraform-drift-detection` criado (ajustar PROJECTS_LIST)
+- [ ] Job `terraform-modules-validation` criado (opcional)
+- [ ] Primeiro teste de deploy executado
+- [ ] Drift detection rodando automaticamente
+
+---
+
+**Pronto para começar!** Configure as credentials e crie o primeiro job. 🚀
