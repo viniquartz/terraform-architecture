@@ -18,7 +18,7 @@ pipeline {
         )
         choice(
             name: 'ACTION',
-            choices: ['plan', 'apply', 'destroy'],
+            choices: ['plan', 'apply'],
             description: 'Terraform action'
         )
         string(
@@ -186,7 +186,7 @@ EOF
         stage('Approval') {
             when {
                 expression { 
-                    params.ACTION == 'apply' || params.ACTION == 'destroy'
+                    params.ACTION == 'apply'
                 }
             }
             steps {
@@ -235,21 +235,6 @@ EOF
                     echo "[APPLY] Applying changes for ${PROJECT_DISPLAY_NAME}"
                     terraform apply tfplan-${PROJECT_DISPLAY_NAME}
                     echo "[SUCCESS] Apply completed for ${PROJECT_DISPLAY_NAME}"
-                """
-            }
-        }
-        
-        stage('Terraform Destroy') {
-            when {
-                expression { params.ACTION == 'destroy' }
-            }
-            steps {
-                sh """
-                    echo "[DESTROY] Destroying resources for ${PROJECT_DISPLAY_NAME}"
-                    terraform destroy \\
-                        -var-file='environments/${params.ENVIRONMENT}/terraform.tfvars' \\
-                        -auto-approve
-                    echo "[SUCCESS] Destroy completed for ${PROJECT_DISPLAY_NAME}"
                 """
             }
         }

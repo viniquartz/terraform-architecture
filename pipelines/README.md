@@ -6,7 +6,8 @@
 
 | Pipeline | Arquivo | Trigger | Aprovação | Uso |
 |----------|---------|---------|-----------|-----|
-| **Deploy** | `terraform-deploy-job.groovy` | Manual | Sim | Deploy/destroy recursos |
+| **Deploy** | `terraform-deploy-job.groovy` | Manual | Sim | Deploy recursos (plan/apply) |
+| **Destroy** | `terraform-destroy-job.groovy` | Manual | Sim | Destroy recursos |
 | **Validation** | `terraform-validation-job.groovy` | Manual | Não | Validar PRs |
 | **Drift Detection** | `terraform-drift-detection-job.groovy` | Auto (4h) | Não | Detectar drift |
 | **Modules** | `terraform-modules-validation-job.groovy` | Manual | Não | Validar módulos |
@@ -155,7 +156,7 @@ Para cada pipeline:
 
 ---
 
-### 3. Drift Detection Pipeline
+### 4. Drift Detection Pipeline
 
 **Arquivo:** `terraform-drift-detection-job.groovy`
 
@@ -192,7 +193,7 @@ Para cada pipeline:
 
 ---
 
-### 4. Modules Validation Pipeline
+### 5. Modules Validation Pipeline
 
 **Arquivo:** `terraform-modules-validation-job.groovy`
 
@@ -242,19 +243,22 @@ Developer cria branch
     ↓
 PR aprovado → Merge
     ↓
-[deploy TST] ← Deploy manual
+[deploy TST] ACTION=apply ← Deploy manual
     ↓
 Testes
     ↓
-[deploy QLT] ← Deploy manual
+[deploy QLT] ACTION=apply ← Deploy manual
     ↓
 Validação
     ↓
-[deploy PRD] ← Deploy manual + Dupla aprovação
+[deploy PRD] ACTION=apply ← Deploy manual + Dupla aprovação
     ↓
 Produção
 
 [drift-detection] ← Roda automático a cada 4h
+
+Quando necessário:
+[destroy] ← Remove recursos (aprovação obrigatória)
 ```
 
 ---
@@ -310,6 +314,17 @@ Parâmetros:
   GIT_REPO_URL: git@github.com:org/power-bi.git
 ```
 
+### Destroy em TST
+
+```
+Job: terraform-destroy
+Parâmetros:
+  PROJECT_NAME: power-bi
+  ENVIRONMENT: tst
+  GIT_BRANCH: main
+  GIT_REPO_URL: git@github.com:org/power-bi.git
+```
+
 ### Validar PR
 
 ```
@@ -345,7 +360,8 @@ Parâmetros:
 ```
 pipelines/
 ├── README.md                                    ← Este arquivo
-├── terraform-deploy-job.groovy                  ← Deploy/Destroy
+├── terraform-deploy-job.groovy                  ← Deploy (plan/apply)
+├── terraform-destroy-job.groovy                 ← Destroy recursos
 ├── terraform-validation-job.groovy              ← Validação
 ├── terraform-drift-detection-job.groovy         ← Drift detection
 └── terraform-modules-validation-job.groovy      ← Modules validation
@@ -357,7 +373,8 @@ pipelines/
 
 - [ ] Credentials configuradas no Jenkins
 - [ ] Docker agent configurado
-- [ ] Job `terraform-deploy` criado
+- [ ] Job `terraform-deploy` criado (plan/apply)
+- [ ] Job `terraform-destroy` criado (destroy)
 - [ ] Job `terraform-validation` criado
 - [ ] Job `terraform-drift-detection` criado (ajustar PROJECTS_LIST)
 - [ ] Job `terraform-modules-validation` criado (opcional)
