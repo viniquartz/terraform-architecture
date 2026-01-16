@@ -81,11 +81,13 @@ Para cada pipeline:
 **Arquivo:** `terraform-deploy-job.groovy`
 
 **O que faz:**
+
 - Deploy de recursos Terraform
 - Destroy de recursos
 - Plan para preview
 
 **Stages:**
+
 1. Initialize
 2. Checkout (Git)
 3. Validate (format, syntax)
@@ -97,6 +99,7 @@ Para cada pipeline:
 9. Terraform Apply/Destroy
 
 **Parâmetros:**
+
 - `PROJECT_NAME`: Nome do projeto
 - `ENVIRONMENT`: prd, qlt ou tst
 - `ACTION`: plan, apply ou destroy
@@ -104,10 +107,12 @@ Para cada pipeline:
 - `GIT_REPO_URL`: URL do repositório
 
 **Aprovações:**
+
 - TST/QLT: `devops-team` (2 horas)
 - PRD: `devops-team` + `security-team` (4 horas)
 
 **Artifacts:**
+
 - tfplan JSON
 - Trivy report (XML)
 - Infracost report (HTML)
@@ -119,11 +124,13 @@ Para cada pipeline:
 **Arquivo:** `terraform-validation-job.groovy`
 
 **O que faz:**
+
 - Valida código antes de merge
 - Security scan
 - Cost estimation
 
 **Stages:**
+
 1. Checkout
 2. Format Check
 3. Terraform Validate
@@ -131,15 +138,18 @@ Para cada pipeline:
 5. Cost Estimation (Infracost)
 
 **Parâmetros:**
+
 - `GIT_REPO_URL`: URL do repositório
 - `GIT_BRANCH`: Branch a validar
 
 **Quando usar:**
+
 - Antes de merge de PR
 - Code review
 - Validação rápida
 
 **Artifacts:**
+
 - Trivy report (XML, SARIF)
 - Infracost report (JSON, HTML)
 
@@ -150,11 +160,13 @@ Para cada pipeline:
 **Arquivo:** `terraform-drift-detection-job.groovy`
 
 **O que faz:**
+
 - Detecta mudanças manuais na infraestrutura
 - Roda automaticamente a cada 4 horas
 - Verifica todos os projetos e ambientes
 
 **Stages:**
+
 1. Para cada projeto/ambiente:
    - Checkout
    - Init com backend
@@ -162,14 +174,17 @@ Para cada pipeline:
    - Detecta drift (exit code 2)
 
 **Parâmetros:**
+
 - `PROJECTS_LIST`: Projetos separados por vírgula (ex: `power-bi,digital-cabin`)
 - `GIT_ORG`: Organização/usuário Git
 
 **Trigger:**
+
 - **Automático:** `H */4 * * *` (a cada 4 horas)
 - Também pode executar manualmente
 
 **Output:**
+
 - Status: SUCCESS (sem drift) ou UNSTABLE (drift detectado)
 - Artifacts: drift-plan JSON para cada projeto com drift
 
@@ -182,11 +197,13 @@ Para cada pipeline:
 **Arquivo:** `terraform-modules-validation-job.groovy`
 
 **O que faz:**
+
 - Valida módulos Terraform compartilhados
 - Verifica exemplos e documentação
 - Quality checks
 
 **Stages:**
+
 1. Checkout
 2. Validate All Modules (format, init, validate)
 3. Security Scan (Trivy)
@@ -196,15 +213,18 @@ Para cada pipeline:
 7. Quality Report
 
 **Parâmetros:**
+
 - `MODULE_REPO_URL`: URL do repositório de módulos
 - `GIT_BRANCH`: Branch a validar
 
 **Quando usar:**
+
 - Antes de versionar módulo
 - PR em repositório de módulos
 - Quality gate
 
 **Verifica:**
+
 - Format e sintaxe
 - Presença de README.md
 - Presença de examples/
@@ -255,18 +275,23 @@ As pipelines usam estas ferramentas (incluídas no Docker image):
 ## 🔧 Troubleshooting
 
 ### Erro: "No such label: terraform-agent"
+
 **Solução:** Configure o Docker agent com label `terraform-agent`
 
 ### Erro: "Credentials not found: azure-sp-tst-client-id"
+
 **Solução:** Adicione as credentials no Jenkins (veja seção Setup)
 
 ### Erro: "terraform: command not found"
+
 **Solução:** Use o Docker image ou instale Terraform no agent
 
 ### Erro: "Permission denied" no Git
+
 **Solução:** Verifique a credential `git-credentials` no Jenkins
 
 ### Pipeline de Drift está falhando
+
 **Solução:** Ajuste `GIT_ORG` e `PROJECTS_LIST` com valores corretos
 
 ---
