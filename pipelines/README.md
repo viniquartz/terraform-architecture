@@ -1,29 +1,31 @@
 # Jenkins Pipelines - Terraform Azure
 
-4 pipelines Jenkins prontas para gerenciar infraestrutura Terraform no Azure.
+Jenkins pipelines for managing Terraform infrastructure on Azure using ephemeral Docker containers.
 
-## 📋 Pipelines Disponíveis
+## Available Pipelines
 
-| Pipeline | Arquivo | Trigger | Aprovação | Uso |
-|----------|---------|---------|-----------|-----|
-| **Deploy** | `terraform-deploy-job.groovy` | Manual | Sim | Deploy recursos (plan/apply) |
-| **Destroy** | `terraform-destroy-job.groovy` | Manual | Sim | Destroy recursos |
-| **Validation** | `terraform-validation-job.groovy` | Manual | Não | Validar PRs |
-| **Drift Detection** | `terraform-drift-detection-job.groovy` | Auto (4h) | Não | Detectar drift |
-| **Modules** | `terraform-modules-validation-job.groovy` | Manual | Não | Validar módulos |
+| Pipeline | File | Trigger | Approval | Purpose |
+|----------|------|---------|----------|---------|
+| Deploy | `terraform-deploy-job.groovy` | Manual | Yes | Deploy resources (plan/apply) |
+| Destroy | `terraform-destroy-job.groovy` | Manual | Yes | Destroy resources |
+| Validation | `terraform-validation-job.groovy` | Manual | No | Validate project code |
+| Drift Detection | `terraform-drift-detection-job.groovy` | Auto (4h) | No | Detect infrastructure drift |
+| Modules Validation | `terraform-modules-validation-job.groovy` | Manual | No | Validate shared modules |
+
+**Note:** Modules validation is only needed if you maintain a separate Terraform modules repository. If not, you can skip this pipeline.
 
 ---
 
-## 🚀 Setup Rápido (15 minutos)
+## Quick Setup
 
-### 1. Configurar Credentials no Jenkins
+### 1. Configure Jenkins Credentials
 
-**Manage Jenkins → Credentials → Add Credentials**
+Go to: Manage Jenkins > Credentials > Add Credentials
 
-Para cada ambiente (prd, qlt, tst):
+**Azure Service Principals (per environment):**
 
 ```
-Tipo: Secret text
+Type: Secret text
 
 azure-sp-prd-client-id
 azure-sp-prd-client-secret
@@ -41,94 +43,167 @@ azure-sp-tst-subscription-id
 azure-sp-tst-tenant-id
 ```
 
-Mais:
+**Git Credentials:**
 
 ```
-Tipo: Username with password
+Type: Username with password
 ID: git-credentials
-Username: seu-usuario-git
-Password: seu-PAT-token
+Username: your-git-username
+Password: your-PAT-token
 ```
 
-### 2. Configurar Docker Agent
+**Test Configuration:**
 
-**Manage Jenkins → Clouds → Docker**
+Create a test pipeline:
 
+```groovy
+pipeline {
+    agent {
+        label 'terraform-agent'
+    }
+    stages {
+        stage('Test') {
+            steps {
+                sh 'terraform version'
+                sh 'trivy --version'
+                sh 'infracost --version'
+                sh 'az version'
+                sh 'hostname'
+            }
+        }
+    }
+}
 ```
-Cloud name: docker-agents
-Docker Host URI: unix:///var/run/docker.sock
 
-Agent Template:
-  Label: terraform-agent
-  Docker Image: jenkins-terraform:latest
-  (use a image do diretório /docker)
+Run and verify:
+
+- Container is created automatically
+- Commands execute successfully
+- Container is destroyed after completion
+
+**Important:** The pipeline will automatically create and destroy containers for each build.
+
+### 5. Create Jenkins Jobs
+
+For each pipeline:
+
+1. New Item > Name (e.g., `terraform-deploy`) > Pipeline > OK
+2. Pipeline section:
+   - Definition: Pipeline script
+   - Script: Copy content from corresponding `.groovy` file
+   - Use Groovy Sandbox: checked
+3. Save
+
+**Expected Behavior:**
+
+When you run any pipeline:
+
+1. Jenkins receives build request
+2. Jenkins requests Docker cloud to provision agent with label `terraform-agent`
+3. Docker cloud creates container from `jenkins-terraform:latest` image
+4. Container starts and connects to Jenkins
+5. Pipeline stages execute inside container
+6. Artifacts are copied to Jenkins master
+7. Pipeline completes
+8. Container is automatically destroyed
+9. Volumes and temporary files are cleaned up
+
+**Verify Ephemeral Behavior:**
+
+During pipeline execution, on Docker VM:
+
+```bash
+# Watch containers being created/destroyed
+watch -n 1 'docker ps'
+
+# During execution you'll see:
+# CONTAINER ID   IMAGE                        STATUS
+# abc123def456   jenkins-terraform:latest     Up 5 seconds
+
+# After completion - container disappears
 ```
-
-### 3. Criar Jobs no Jenkins
-
-Para cada pipeline:
-
-1. **New Item** → Nome (ex: `terraform-deploy`) → **Pipeline**
-2. **Pipeline script:** Copie o conteúdo do arquivo `.groovy` correspondente
-3. Marque: ☑ **Use Groovy Sandbox**
-4. **Save**
 
 ---
 
-## 📖 Detalhes das Pipelines
+## Pipeline Details
 
 ### 1. Deploy Pipeline
 
-**Arquivo:** `terraform-deploy-job.groovy`
+**File:** `terraform-deploy-job.groovy`
 
-**O que faz:**
+Deploys Terraform resources to Azure environments.
 
-- Deploy de recursos Terraform
-- Destroy de recursos
-- Plan para preview
+**Parameters:**
+
+- `PROJECT_NAME`: Project name
+- `ENVIRONMENT`: prd, qlt, or tst
+- `ACTION`: plan or apply
+- `GIT_BRANCH`: Git branch (default: main)
+- `GIT_REPO_URL`: Repository URL
 
 **Stages:**
 
 1. Initialize
-2. Checkout (Git)
+2. Checkout
 3. Validate (format, syntax)
 4. Security Scan (Trivy)
 5. Cost Estimation (Infracost)
-6. Terraform Init (backend Azure)
+6. Terraform Init
 7. Terraform Plan
-8. **Approval** ⏸️ (se apply/destroy)
-9. Terraform Apply/Destroy
+8. Approval (if apply)
+9. Terraform Apply
 
-**Parâmetros:**
+**Approvals:**
 
-- `PROJECT_NAME`: Nome do projeto
-- `ENVIRONMENT`: prd, qlt ou tst
-- `ACTION`: plan, apply ou destroy
-- `GIT_BRANCH`: Branch do Git (default: main)
-- `GIT_REPO_URL`: URL do repositório
+- TST/QLT: devops-team (2 hours)
+- PRD: devops-team + security-team (4 hours)
 
-**Aprovações:**
-
-- TST/QLT: `devops-team` (2 horas)
-- PRD: `devops-team` + `security-team` (4 horas)
-
-**Artifacts:**
-
-- tfplan JSON
-- Trivy report (XML)
-- Infracost report (HTML)
+**Artifacts:** tfplan JSON, Trivy report, Infracost report
 
 ---
 
-### 2. Validation Pipeline
+### 2. Destroy Pipeline
 
-**Arquivo:** `terraform-validation-job.groovy`
+**File:** `terraform-destroy-job.groovy`
 
-**O que faz:**
+Destroys all Terraform resources for a project.
 
-- Valida código antes de merge
-- Security scan
-- Cost estimation
+**Parameters:**
+
+- `PROJECT_NAME`: Project name
+- `ENVIRONMENT`: prd, qlt, or tst
+- `GIT_BRANCH`: Git branch (default: main)
+- `GIT_REPO_URL`: Repository URL
+
+**Stages:**
+
+1. Initialize
+2. Checkout
+3. Terraform Init
+4. Terraform Plan -destroy
+5. Approval (mandatory with confirmation)
+6. Terraform Destroy
+
+**Approvals:**
+
+- TST/QLT: devops-team (4 hours)
+- PRD: devops-team + security-team (8 hours)
+- Requires explicit confirmation checkbox
+
+**Warning:** This permanently deletes all resources. Always review the destroy plan carefully.
+
+---
+
+### 3. Validation Pipeline
+
+**File:** `terraform-validation-job.groovy`
+
+Validates Terraform project code before merging Pull Requests.
+
+**Parameters:**
+
+- `GIT_REPO_URL`: Repository URL
+- `GIT_BRANCH`: Branch to validate
 
 **Stages:**
 
@@ -138,249 +213,74 @@ Para cada pipeline:
 4. Security Scan (Trivy)
 5. Cost Estimation (Infracost)
 
-**Parâmetros:**
+**Use cases:**
 
-- `GIT_REPO_URL`: URL do repositório
-- `GIT_BRANCH`: Branch a validar
-
-**Quando usar:**
-
-- Antes de merge de PR
+- Pre-merge PR validation
 - Code review
-- Validação rápida
+- Quick syntax verification
 
-**Artifacts:**
-
-- Trivy report (XML, SARIF)
-- Infracost report (JSON, HTML)
+**Artifacts:** Trivy report, Infracost report
 
 ---
 
 ### 4. Drift Detection Pipeline
 
-**Arquivo:** `terraform-drift-detection-job.groovy`
+**File:** `terraform-drift-detection-job.groovy`
 
-**O que faz:**
+Automatically detects infrastructure drift across all projects.
 
-- Detecta mudanças manuais na infraestrutura
-- Roda automaticamente a cada 4 horas
-- Verifica todos os projetos e ambientes
+**Parameters:**
+
+- `PROJECTS_LIST`: Comma-separated project names
+- `GIT_ORG`: Git organization/username
+
+**Trigger:** Automatic every 4 hours (`H */4 * * *`)
 
 **Stages:**
 
-1. Para cada projeto/ambiente:
+1. For each project/environment:
    - Checkout
-   - Init com backend
-   - Plan com detailed-exitcode
-   - Detecta drift (exit code 2)
-
-**Parâmetros:**
-
-- `PROJECTS_LIST`: Projetos separados por vírgula (ex: `power-bi,digital-cabin`)
-- `GIT_ORG`: Organização/usuário Git
-
-**Trigger:**
-
-- **Automático:** `H */4 * * *` (a cada 4 horas)
-- Também pode executar manualmente
+   - Init with backend
+   - Plan with detailed-exitcode
+   - Detect drift (exit code 2)
 
 **Output:**
 
-- Status: SUCCESS (sem drift) ou UNSTABLE (drift detectado)
-- Artifacts: drift-plan JSON para cada projeto com drift
+- SUCCESS: No drift detected
+- UNSTABLE: Drift detected (check artifacts)
+- Artifacts: drift-plan JSON for affected projects
 
-**⚠️ Importante:** Ajuste `PROJECTS_LIST` com seus projetos reais
+**Note:** Update `PROJECTS_LIST` with your actual projects before first run.
 
 ---
 
 ### 5. Modules Validation Pipeline
 
-**Arquivo:** `terraform-modules-validation-job.groovy`
+**File:** `terraform-modules-validation-job.groovy`
 
-**O que faz:**
+Validates Terraform modules repository before versioning.
 
-- Valida módulos Terraform compartilhados
-- Verifica exemplos e documentação
-- Quality checks
+**Parameters:**
+
+- `MODULE_REPO_URL`: Modules repository URL
+- `GIT_BRANCH`: Branch to validate
 
 **Stages:**
 
 1. Checkout
-2. Validate All Modules (format, init, validate)
+2. Validate All Modules
 3. Security Scan (Trivy)
-4. Cost Analysis (exemplos)
+4. Cost Analysis (examples)
 5. Validate Examples
 6. Version Check
 7. Quality Report
 
-**Parâmetros:**
+**Quality checks:**
 
-- `MODULE_REPO_URL`: URL do repositório de módulos
-- `GIT_BRANCH`: Branch a validar
-
-**Quando usar:**
-
-- Antes de versionar módulo
-- PR em repositório de módulos
-- Quality gate
-
-**Verifica:**
-
-- Format e sintaxe
-- Presença de README.md
-- Presença de examples/
+- Format and syntax
+- README.md presence
+- examples/ directory
 - variables.tf, outputs.tf
-- Validação de exemplos
+- Example validation
 
----
-
-## 🔄 Fluxo de Trabalho
-
-```
-Developer cria branch
-    ↓
-[validation] ← Validar código
-    ↓
-PR aprovado → Merge
-    ↓
-[deploy TST] ACTION=apply ← Deploy manual
-    ↓
-Testes
-    ↓
-[deploy QLT] ACTION=apply ← Deploy manual
-    ↓
-Validação
-    ↓
-[deploy PRD] ACTION=apply ← Deploy manual + Dupla aprovação
-    ↓
-Produção
-
-[drift-detection] ← Roda automático a cada 4h
-
-Quando necessário:
-[destroy] ← Remove recursos (aprovação obrigatória)
-```
-
----
-
-## 🛠️ Ferramentas Necessárias
-
-As pipelines usam estas ferramentas (incluídas no Docker image):
-
-- **Terraform** - IaC engine
-- **Trivy** - Security scanning
-- **Infracost** - Cost estimation
-- **Azure CLI** - Azure authentication
-
-**Docker Image:** Use o Dockerfile em `/docker` para criar a image `jenkins-terraform:latest`
-
----
-
-## 🔧 Troubleshooting
-
-### Erro: "No such label: terraform-agent"
-
-**Solução:** Configure o Docker agent com label `terraform-agent`
-
-### Erro: "Credentials not found: azure-sp-tst-client-id"
-
-**Solução:** Adicione as credentials no Jenkins (veja seção Setup)
-
-### Erro: "terraform: command not found"
-
-**Solução:** Use o Docker image ou instale Terraform no agent
-
-### Erro: "Permission denied" no Git
-
-**Solução:** Verifique a credential `git-credentials` no Jenkins
-
-### Pipeline de Drift está falhando
-
-**Solução:** Ajuste `GIT_ORG` e `PROJECTS_LIST` com valores corretos
-
----
-
-## 📊 Exemplos de Uso
-
-### Deploy em TST
-
-```
-Job: terraform-deploy
-Parâmetros:
-  PROJECT_NAME: power-bi
-  ENVIRONMENT: tst
-  ACTION: apply
-  GIT_BRANCH: main
-  GIT_REPO_URL: git@github.com:org/power-bi.git
-```
-
-### Destroy em TST
-
-```
-Job: terraform-destroy
-Parâmetros:
-  PROJECT_NAME: power-bi
-  ENVIRONMENT: tst
-  GIT_BRANCH: main
-  GIT_REPO_URL: git@github.com:org/power-bi.git
-```
-
-### Validar PR
-
-```
-Job: terraform-validation
-Parâmetros:
-  GIT_REPO_URL: git@github.com:org/power-bi.git
-  GIT_BRANCH: feature/new-vm
-```
-
-### Verificar Drift
-
-```
-Job: terraform-drift-detection
-Parâmetros:
-  PROJECTS_LIST: power-bi,digital-cabin,data-lake
-  GIT_ORG: your-org
-```
-
----
-
-## 🔐 Segurança
-
-- ✅ Credentials isoladas por ambiente
-- ✅ Approval gates obrigatórios
-- ✅ Dupla aprovação para PRD
-- ✅ Security scan em todos os deploys
-- ✅ Auditoria completa via logs
-
----
-
-## 📁 Arquivos
-
-```
-pipelines/
-├── README.md                                    ← Este arquivo
-├── terraform-deploy-job.groovy                  ← Deploy (plan/apply)
-├── terraform-destroy-job.groovy                 ← Destroy recursos
-├── terraform-validation-job.groovy              ← Validação
-├── terraform-drift-detection-job.groovy         ← Drift detection
-└── terraform-modules-validation-job.groovy      ← Modules validation
-```
-
----
-
-## 🎯 Checklist de Implementação
-
-- [ ] Credentials configuradas no Jenkins
-- [ ] Docker agent configurado
-- [ ] Job `terraform-deploy` criado (plan/apply)
-- [ ] Job `terraform-destroy` criado (destroy)
-- [ ] Job `terraform-validation` criado
-- [ ] Job `terraform-drift-detection` criado (ajustar PROJECTS_LIST)
-- [ ] Job `terraform-modules-validation` criado (opcional)
-- [ ] Primeiro teste de deploy executado
-- [ ] Drift detection rodando automaticamente
-
----
-
-**Pronto para começar!** Configure as credentials e crie o primeiro job. 🚀
+**Note:** Only needed if you maintain a separate Terraform modules repository.
