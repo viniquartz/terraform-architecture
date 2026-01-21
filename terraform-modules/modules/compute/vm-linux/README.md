@@ -16,8 +16,8 @@ Módulo Terraform para criar uma VM Linux no Azure.
 module "vm_linux" {
   source = "git@github.com:org/terraform-azure-modules.git//modules/compute/vm-linux?ref=v1.0.0"
   
-  name                = "vm-myapp-linux-tst-01"
-  resource_group_name = "rg-myapp-tst-brazilsouth-01"
+  name                = "azr-tst-myapp01-brs-vm-linux"
+  resource_group_name = "azr-tst-myapp01-brs-rg"
   location            = "brazilsouth"
   vm_size             = "Standard_B2s"
   subnet_id           = module.subnet.id
@@ -61,6 +61,7 @@ module "vm_linux" {
 | tags | Tags | map(string) | Não | {} |
 
 **Default os_disk**:
+
 ```hcl
 {
   caching              = "ReadWrite"
@@ -70,6 +71,7 @@ module "vm_linux" {
 ```
 
 **Default source_image**:
+
 ```hcl
 {
   publisher = "Canonical"
@@ -97,23 +99,27 @@ module "vm_linux" {
 - **CentOS 7**: `7-lvm-gen2`
 
   # OS Disk
+
   os_disk_size_gb     = 128
   os_disk_caching     = "ReadWrite"
   os_disk_storage_type = "Premium_LRS"
   
   # Source Image
+
   source_image_publisher = "Canonical"
   source_image_offer     = "0001-com-ubuntu-server-jammy"
   source_image_sku       = "22_04-lts-gen2"
   source_image_version   = "latest"
   
   # Additional Configuration
+
   enable_boot_diagnostics = true
   
   tags = local.common_tags
 }
 
 # Add data disks
+
 resource "azurerm_managed_disk" "data" {
   name                 = "${module.vm_app.name}-data"
   location             = var.location
@@ -131,6 +137,7 @@ resource "azurerm_virtual_machine_data_disk_attachment" "data" {
   lun                = 0
   caching            = "ReadWrite"
 }
+
 ```
 
 ### Multiple VMs with Count
@@ -315,12 +322,14 @@ ssh adminuser@<public-ip> -i ~/.ssh/azure_vm
 ## Security Best Practices
 
 ### For POC/Development
+
 - Use B-series VMs (burstable, cost-effective)
 - Standard_LRS disks (cheapest)
 - Dynamic IP assignment
 - Boot diagnostics disabled (no storage cost)
 
 ### For Production
+
 - Use appropriate VM size for workload
 - Premium_LRS or Premium_ZRS disks
 - Static IP for databases
@@ -414,6 +423,7 @@ module "vm" {
 **Error:** `Permission denied (publickey)`
 
 **Solution:**
+
 1. Verify SSH key format (must start with ssh-rsa)
 2. Check private key permissions: `chmod 600 ~/.ssh/azure_vm`
 3. Verify correct username (default: adminuser)
@@ -423,6 +433,7 @@ module "vm" {
 **Error:** `The requested VM size Standard_D4s_v3 is not available`
 
 **Solution:**
+
 1. Check region availability
 2. Try different VM size
 3. Verify subscription quota

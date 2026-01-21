@@ -16,8 +16,8 @@ Módulo Terraform para criar uma VM Windows no Azure.
 module "vm_windows" {
   source = "git@github.com:org/terraform-azure-modules.git//modules/compute/vm-windows?ref=v1.0.0"
   
-  name                = "vm-myapp-windows-tst-01"
-  resource_group_name = "rg-myapp-tst-brazilsouth-01"
+  name                = "azr-tst-myapp01-brs-vm-windows"
+  resource_group_name = "azr-tst-myapp01-brs-rg"
   location            = "brazilsouth"
   vm_size             = "Standard_B2s"
   subnet_id           = module.subnet.id
@@ -61,6 +61,7 @@ module "vm_windows" {
 | tags | Tags | map(string) | Não | {} |
 
 **Default os_disk**:
+
 ```hcl
 {
   caching              = "ReadWrite"
@@ -70,6 +71,7 @@ module "vm_windows" {
 ```
 
 **Default source_image**:
+
 ```hcl
 {
   publisher = "MicrosoftWindowsServer"

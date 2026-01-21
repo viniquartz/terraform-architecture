@@ -41,7 +41,7 @@ output "disk" {
 
 # Special cases (Azure naming restrictions)
 output "storage_account" {
-  description = "Storage Account name (no underscores, lowercase, max 24 chars)"
+  description = "Storage Account name (no hyphens/underscores, lowercase, max 24 chars)"
   value       = substr(local.storage_account_name, 0, 24)
 }
 
