@@ -50,7 +50,7 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    echo "[START] Starting deployment for ${PROJECT_DISPLAY_NAME}"
+                    echo "[START] Starting deployment for ${env.PROJECT_DISPLAY_NAME}"
                     echo "[INFO] Using Service Principal for environment: ${params.ENVIRONMENT}"
                     
                     // Phase 2: Teams notification
@@ -177,12 +177,12 @@ EOF
         stage('Terraform Plan') {
             steps {
                 script {
-                    echo "[PLAN] Running Terraform plan for ${PROJECT_DISPLAY_NAME}"
+                    echo "[PLAN] Running Terraform plan for ${env.PROJECT_DISPLAY_NAME}"
                     
                     def planExitCode = sh(
                         script: """
                             terraform plan \\
-                                -out=tfplan-${PROJECT_DISPLAY_NAME} \\
+                                -out=tfplan-${env.PROJECT_DISPLAY_NAME} \\
                                 -var-file='environments/${params.ENVIRONMENT}/terraform.tfvars' \\
                                 -detailed-exitcode
                         """,
@@ -190,14 +190,14 @@ EOF
                     )
                     
                     if (planExitCode == 2) {
-                        echo "[WARNING] Changes detected for ${PROJECT_DISPLAY_NAME}"
+                        echo "[WARNING] Changes detected for ${env.PROJECT_DISPLAY_NAME}"
                     } else if (planExitCode == 0) {
-                        echo "[OK] No changes required for ${PROJECT_DISPLAY_NAME}"
+                        echo "[OK] No changes required for ${env.PROJECT_DISPLAY_NAME}"
                     } else {
-                        error "[ERROR] Terraform plan failed for ${PROJECT_DISPLAY_NAME}"
+                        error "[ERROR] Terraform plan failed for ${env.PROJECT_DISPLAY_NAME}"
                     }
                     
-                    sh "terraform show -json tfplan-${PROJECT_DISPLAY_NAME} > tfplan-${PROJECT_DISPLAY_NAME}.json"
+                    sh "terraform show -json tfplan-${env.PROJECT_DISPLAY_NAME} > tfplan-${env.PROJECT_DISPLAY_NAME}.json"
                 }
             }
         }
@@ -210,13 +210,13 @@ EOF
         //     }
         //     steps {
         //         script {
-        //             def approvalMessage = "Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+        //             def approvalMessage = "Approve ${params.ACTION} for ${env.PROJECT_DISPLAY_NAME}?"
         //             def approvers = 'devops-team'
         //             def timeoutHours = 2
                     
         //             // Production requires additional approval
         //             if (params.ENVIRONMENT == 'prd') {
-        //                 approvalMessage = "PRODUCTION: Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+        //                 approvalMessage = "PRODUCTION: Approve ${params.ACTION} for ${env.PROJECT_DISPLAY_NAME}?"
         //                 approvers = 'devops-team,security-team'
         //                 timeoutHours = 4
         //             }
@@ -248,7 +248,7 @@ EOF
         stage('Terraform Apply') {
             when {
                 expression { params.ACTION == 'apply' }
-                expression { fileExists("tfplan-${PROJECT_DISPLAY_NAME}") }
+                expression { fileExists("tfplan-${env.PROJECT_DISPLAY_NAME}") }
             }
             steps {
                 sh """
@@ -273,7 +273,7 @@ EOF
     post {
         success {
             script {
-                echo "[SUCCESS] ${params.ACTION} completed for ${PROJECT_DISPLAY_NAME}"
+                echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification
@@ -289,7 +289,7 @@ EOF
         
         failure {
             script {
-                echo "[FAILURE] ${params.ACTION} failed for ${PROJECT_DISPLAY_NAME}"
+                echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification
@@ -304,14 +304,14 @@ EOF
         }
         
         always {
-            archiveArtifacts artifacts: "**/tfplan-${PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
-            junit testResults: "**/trivy-report-${PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
+            archiveArtifacts artifacts: "**/tfplan-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
+            junit testResults: "**/trivy-report-${env.PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
                 keepAll: true,
                 reportDir: '.',
-                reportFiles: "infracost-${PROJECT_DISPLAY_NAME}.html",
+                reportFiles: "infracost-${env.PROJECT_DISPLAY_NAME}.html",
                 reportName: 'Infracost Report'
             ])
             cleanWs()
