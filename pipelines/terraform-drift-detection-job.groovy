@@ -4,7 +4,12 @@
 
 pipeline {
     agent {
-        label 'terraform-agent'
+        docker {
+            image 'jenkins-terraform:latest'
+            label 'terraform-agent'
+            args '--network host'
+            reuseNode true
+        }
     }
     
     triggers {
