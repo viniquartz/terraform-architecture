@@ -18,7 +18,7 @@ pipeline {
         )
         choice(
             name: 'ENVIRONMENT',
-            choices: ['prd', 'qlt', 'tst'],
+            choices: ['tst', 'qlt', 'prd'],
             description: 'Target environment'
         )
         choice(
@@ -27,13 +27,13 @@ pipeline {
             description: 'Terraform action'
         )
         string(
+            name: 'GIT_REPO_URL',
+            description: 'Full Git repository URL'
+        )
+        string(
             name: 'GIT_BRANCH',
             defaultValue: 'main',
             description: 'Repository branch'
-        )
-        string(
-            name: 'GIT_REPO_URL',
-            description: 'Full Git repository URL'
         )
     }
     
@@ -75,7 +75,7 @@ pipeline {
                         branches: [[name: params.GIT_BRANCH]],
                         userRemoteConfigs: [[
                             url: params.GIT_REPO_URL,
-                            credentialsId: 'git-credentials'
+                            credentialsId: 'gitlab-credentials'
                         ]]
                     ])
                 }
@@ -89,6 +89,7 @@ pipeline {
                     terraform fmt -check -recursive
                     terraform init -backend=false
                     terraform validate
+                    rm -rf .terraform
                 """
             }
         }
@@ -140,6 +141,19 @@ pipeline {
                 """
             }
         }
+
+        stage('Azure Login') {
+            steps {
+                sh """
+                    az login --service-principal \
+                    -u $ARM_CLIENT_ID \
+                    -p $ARM_CLIENT_SECRET \
+                    --tenant $ARM_TENANT_ID
+                    
+                    az account set --subscription $ARM_SUBSCRIPTION_ID
+                """
+            }
+        }
         
         stage('Terraform Init') {
             steps {
@@ -148,8 +162,8 @@ pipeline {
                     
                     # Generate dynamic backend configuration
                     cat > backend-config.tfbackend << EOF
-resource_group_name  = "rg-terraform-state"
-storage_account_name = "stterraformstate"
+resource_group_name  = "azr-prd-iac01-weu-rg"
+storage_account_name = "azrprdiac01weust"
 container_name       = "terraform-state-${params.ENVIRONMENT}"
 key                  = "${params.PROJECT_NAME}/terraform.tfstate"
 EOF
@@ -188,52 +202,53 @@ EOF
             }
         }
         
-        stage('Approval') {
-            when {
-                expression { 
-                    params.ACTION == 'apply'
-                }
-            }
-            steps {
-                script {
-                    def approvalMessage = "Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
-                    def approvers = 'devops-team'
-                    def timeoutHours = 2
+        // stage('Approval') {
+        //     when {
+        //         expression { 
+        //             params.ACTION == 'apply'
+        //         }
+        //     }
+        //     steps {
+        //         script {
+        //             def approvalMessage = "Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+        //             def approvers = 'devops-team'
+        //             def timeoutHours = 2
                     
-                    // Production requires additional approval
-                    if (params.ENVIRONMENT == 'prd') {
-                        approvalMessage = "PRODUCTION: Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
-                        approvers = 'devops-team,security-team'
-                        timeoutHours = 4
-                    }
+        //             // Production requires additional approval
+        //             if (params.ENVIRONMENT == 'prd') {
+        //                 approvalMessage = "PRODUCTION: Approve ${params.ACTION} for ${PROJECT_DISPLAY_NAME}?"
+        //                 approvers = 'devops-team,security-team'
+        //                 timeoutHours = 4
+        //             }
                     
-                    echo "[APPROVAL] Waiting for approval: ${approvalMessage}"
+        //             echo "[APPROVAL] Waiting for approval: ${approvalMessage}"
                     
-                    // Phase 2: Add email/Teams notification
-                    // sendTeamsNotification(status: 'PENDING_APPROVAL', ...)
+        //             // Phase 2: Add email/Teams notification
+        //             // sendTeamsNotification(status: 'PENDING_APPROVAL', ...)
                     
-                    timeout(time: timeoutHours, unit: 'HOURS') {
-                        input(
-                            id: 'Approval',
-                            message: approvalMessage,
-                            submitter: approvers,
-                            parameters: [
-                                text(
-                                    name: 'APPROVAL_COMMENT',
-                                    description: 'Approval comments'
-                                )
-                            ]
-                        )
-                    }
+        //             timeout(time: timeoutHours, unit: 'HOURS') {
+        //                 input(
+        //                     id: 'Approval',
+        //                     message: approvalMessage,
+        //                     submitter: approvers,
+        //                     parameters: [
+        //                         text(
+        //                             name: 'APPROVAL_COMMENT',
+        //                             description: 'Approval comments'
+        //                         )
+        //                     ]
+        //                 )
+        //             }
                     
-                    echo "[APPROVAL] Approved by: ${env.BUILD_USER}"
-                }
-            }
-        }
+        //             echo "[APPROVAL] Approved by: ${env.BUILD_USER}"
+        //         }
+        //     }
+        // }
         
         stage('Terraform Apply') {
             when {
                 expression { params.ACTION == 'apply' }
+                expression { fileExists("tfplan-${PROJECT_DISPLAY_NAME}") }
             }
             steps {
                 sh """
