@@ -7,7 +7,7 @@ pipeline {
         docker {
             image 'jenkins-terraform:latest'
             label 'terraform-agent'
-            args '--network host'
+            args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
             reuseNode true
         }
     }
@@ -46,7 +46,7 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    echo "[START] Starting DESTROY for ${PROJECT_DISPLAY_NAME}"
+                    echo "[START] Starting DESTROY for ${env.PROJECT_DISPLAY_NAME}"
                     echo "[WARNING] This will DESTROY all resources!"
                     echo "[INFO] Using Service Principal for environment: ${params.ENVIRONMENT}"
                 }
@@ -93,12 +93,12 @@ EOF
         stage('Terraform Plan Destroy') {
             steps {
                 script {
-                    echo "[PLAN] Running Terraform plan -destroy for ${PROJECT_DISPLAY_NAME}"
+                    echo "[PLAN] Running Terraform plan -destroy for ${env.PROJECT_DISPLAY_NAME}"
                     
                     def planExitCode = sh(
                         script: """
                             terraform plan -destroy \\
-                                -out=tfplan-destroy-${PROJECT_DISPLAY_NAME} \\
+                                -out=tfplan-destroy-${env.PROJECT_DISPLAY_NAME} \\
                                 -var-file='environments/${params.ENVIRONMENT}/terraform.tfvars' \\
                                 -detailed-exitcode
                         """,
@@ -106,21 +106,21 @@ EOF
                     )
                     
                     if (planExitCode == 2) {
-                        echo "[WARNING] Resources will be DESTROYED for ${PROJECT_DISPLAY_NAME}"
+                        echo "[WARNING] Resources will be DESTROYED for ${env.PROJECT_DISPLAY_NAME}"
                     } else if (planExitCode == 0) {
-                        echo "[INFO] No resources to destroy for ${PROJECT_DISPLAY_NAME}"
+                        echo "[INFO] No resources to destroy for ${env.PROJECT_DISPLAY_NAME}"
                     } else {
-                        error "[ERROR] Terraform plan -destroy failed for ${PROJECT_DISPLAY_NAME}"
+                        error "[ERROR] Terraform plan -destroy failed for ${env.PROJECT_DISPLAY_NAME}"
                     }
                     
-                    sh "terraform show -json tfplan-destroy-${PROJECT_DISPLAY_NAME} > tfplan-destroy-${PROJECT_DISPLAY_NAME}.json"
+                    sh "terraform show -json tfplan-destroy-${env.PROJECT_DISPLAY_NAME} > tfplan-destroy-${env.PROJECT_DISPLAY_NAME}.json"
                     
                     // Show what will be destroyed
                     sh """
                         echo "[WARNING] =========================================="
                         echo "[WARNING] RESOURCES TO BE DESTROYED:"
                         echo "[WARNING] =========================================="
-                        terraform show tfplan-destroy-${PROJECT_DISPLAY_NAME}
+                        terraform show tfplan-destroy-${env.PROJECT_DISPLAY_NAME}
                         echo "[WARNING] =========================================="
                     """
                 }
@@ -130,13 +130,13 @@ EOF
         stage('Approval') {
             steps {
                 script {
-                    def approvalMessage = "⚠️ DESTROY: Approve destruction of ${PROJECT_DISPLAY_NAME}?"
+                    def approvalMessage = "⚠️ DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
                     def approvers = 'devops-team'
                     def timeoutHours = 4
                     
                     // Production requires additional approval
                     if (params.ENVIRONMENT == 'prd') {
-                        approvalMessage = "🚨 PRODUCTION DESTROY: Approve destruction of ${PROJECT_DISPLAY_NAME}?"
+                        approvalMessage = "🚨 PRODUCTION DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
                         approvers = 'devops-team,security-team'
                         timeoutHours = 8
                     }
@@ -191,20 +191,20 @@ EOF
     post {
         success {
             script {
-                echo "[SUCCESS] Destroy completed successfully for ${PROJECT_DISPLAY_NAME}"
+                echo "[SUCCESS] Destroy completed successfully for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
         }
         
         failure {
             script {
-                echo "[FAILURE] Destroy failed for ${PROJECT_DISPLAY_NAME}"
+                echo "[FAILURE] Destroy failed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
         }
         
         always {
-            archiveArtifacts artifacts: "**/tfplan-destroy-${PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
+            archiveArtifacts artifacts: "**/tfplan-destroy-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
             cleanWs()
         }
     }

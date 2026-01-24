@@ -7,7 +7,7 @@ pipeline {
         docker {
             image 'jenkins-terraform:latest'
             label 'terraform-agent'
-            args '--network host'
+            args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
             reuseNode true
         }
     }
