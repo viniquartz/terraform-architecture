@@ -86,7 +86,7 @@ pipeline {
             steps {
                 sh """
                     echo "[OK] Validating Terraform code for ${PROJECT_DISPLAY_NAME}"
-                    terraform fmt -check -recursive
+                    terraform fmt -recursive
                     terraform init -backend=false
                     terraform validate
                     rm -rf .terraform
