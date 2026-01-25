@@ -96,8 +96,11 @@ pipeline {
         
         stage('Terraform Init') {
             steps {
-                sh """
+                sh '''
                     echo "[INIT] Configuring backend for ${PROJECT_DISPLAY_NAME}"
+                    
+                    # Load Git config
+                    source /tmp/git-env.sh
                     
                     # Generate dynamic backend configuration
                     cat > backend-config.tfbackend << EOF
@@ -109,7 +112,7 @@ EOF
                     
                     echo "[INIT] Initializing Terraform with backend config"
                     terraform init -backend-config=backend-config.tfbackend -upgrade
-                """
+                '''
             }
         }
         

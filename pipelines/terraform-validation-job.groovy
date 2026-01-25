@@ -107,8 +107,11 @@ pipeline {
         
         stage('Cost Estimation') {
             steps {
-                sh """
+                sh '''
                     echo "[COST] Running Infracost estimation"
+                    
+                    # Load Git config
+                    source /tmp/git-env.sh
                     
                     # Initialize for cost calculation
                     terraform init -backend=false
