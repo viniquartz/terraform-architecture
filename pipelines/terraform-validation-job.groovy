@@ -50,11 +50,18 @@ pipeline {
                     usernameVariable: 'GIT_USERNAME',
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
-                    sh """
+                    sh '''
                         echo "[GIT] Configuring Git credentials for Terraform modules"
-                        git config --global credential.helper store
-                        echo "https://\${GIT_USERNAME}:\${GIT_PASSWORD}@gitlab.tap.pt" > ~/.git-credentials
-                    """
+                        
+                        # Use custom git config in /tmp (no permission issues)
+                        export GIT_CONFIG_GLOBAL=/tmp/.gitconfig
+                        
+                        # Rewrite GitLab URLs to include credentials automatically
+                        git config --global url."https://${GIT_USERNAME}:${GIT_PASSWORD}@gitlab.tap.pt".insteadOf "https://gitlab.tap.pt"
+                        
+                        # Save config path for next stages
+                        echo "export GIT_CONFIG_GLOBAL=/tmp/.gitconfig" > /tmp/git-env.sh
+                    '''
                 }
             }
         }
@@ -150,11 +157,10 @@ pipeline {
             }
         }
         always {
-            sh """
-                # Clean up Git credentials
-                rm -f ~/.git-credentials
-                git config --global --unset credential.helper || true
-            """
+            sh '''
+                # Clean up Git config
+                rm -f /tmp/.gitconfig /tmp/git-env.sh
+            '''
             
             // Archive reports
             archiveArtifacts artifacts: '**/*-report.*,**/*-validation.*', allowEmptyArchive: true
