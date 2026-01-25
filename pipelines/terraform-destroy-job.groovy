@@ -71,6 +71,22 @@ pipeline {
             }
         }
         
+        stage('Configure Git') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'gitlab-credentials',
+                    usernameVariable: 'GIT_USERNAME',
+                    passwordVariable: 'GIT_PASSWORD'
+                )]) {
+                    sh """
+                        echo "[GIT] Configuring Git credentials for Terraform modules"
+                        git config --global credential.helper store
+                        echo "https://\${GIT_USERNAME}:\${GIT_PASSWORD}@gitlab.tap.pt" > ~/.git-credentials
+                    """
+                }
+            }
+        }
+        
         stage('Terraform Init') {
             steps {
                 sh """
@@ -204,6 +220,11 @@ EOF
         }
         
         always {
+            sh """
+                # Clean up Git credentials
+                rm -f ~/.git-credentials
+                git config --global --unset credential.helper || true
+            """
             archiveArtifacts artifacts: "**/tfplan-destroy-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
             cleanWs()
         }
