@@ -36,7 +36,7 @@ pipeline {
                         branches: [[name: params.GIT_BRANCH]],
                         userRemoteConfigs: [[
                             url: params.GIT_REPO_URL,
-                            credentialsId: 'git-credentials'
+                            credentialsId: 'gitlab-credentials'
                         ]]
                     ])
                 }

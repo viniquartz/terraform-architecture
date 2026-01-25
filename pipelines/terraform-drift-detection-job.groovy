@@ -50,7 +50,7 @@ pipeline {
                                     branches: [[name: 'main']],
                                     userRemoteConfigs: [[
                                         url: "git@github.com:${params.GIT_ORG}/${project}.git",
-                                        credentialsId: 'git-credentials'
+                                        credentialsId: 'gitlab-credentials'
                                     ]]
                                 ])
                                 
