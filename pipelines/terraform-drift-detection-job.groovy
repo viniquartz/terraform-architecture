@@ -163,26 +163,15 @@ EOF
     
     post {
         always {
-            script {
-                echo "[INFO] Drift detection completed"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-                
-                // Archive drift plans
-                archiveArtifacts artifacts: '**/drift-plan-*.json', allowEmptyArchive: true
-            }
+            echo "[INFO] Drift detection completed"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
+            
+            // Archive drift plans
+            archiveArtifacts artifacts: '**/drift-plan-*.json', allowEmptyArchive: true
         }
         
         unstable {
-            script {
-                echo "[ALERT] Drift detected! Review artifacts for details."
-                
-                // Phase 2: Send consolidated drift report
-                // sendTeamsNotification(
-                //     status: 'DRIFT_SUMMARY',
-                //     customMessage: "Drift detected in ${driftDetected.size()} environments",
-                //     buildUrl: env.BUILD_URL
-                // )
-            }
+            echo "[ALERT] Drift detected! Review artifacts for details."
         }
     }
 }

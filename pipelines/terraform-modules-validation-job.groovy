@@ -336,35 +336,15 @@ pipeline {
     
     post {
         success {
-            script {
-                echo "[SUCCESS] Module validation passed"
-                echo "[INFO] All modules validated successfully"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-                
-                // Phase 2: GitLab MR comments
-                // updateGitlabCommitStatus name: 'modules-validation', state: 'success'
-                // addGitLabMRComment comment: "[SUCCESS] Module validation passed"
-                
-                // Phase 2: Teams notification
-                // sendTeamsNotification(
-                //     status: 'SUCCESS',
-                //     projectName: 'terraform-azure-modules',
-                //     action: 'validate',
-                //     buildUrl: env.BUILD_URL
-                // )
-            }
+            echo "[SUCCESS] Module validation passed"
+            echo "[INFO] All modules validated successfully"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
         
         failure {
-            script {
-                echo "[FAILURE] Module validation failed"
-                echo "[INFO] Check logs for details"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-                
-                // Phase 2: GitLab MR comments
-                // updateGitlabCommitStatus name: 'modules-validation', state: 'failed'
-                // addGitLabMRComment comment: "[ERROR] Module validation failed. Check logs."
-            }
+            echo "[FAILURE] Module validation failed"
+            echo "[INFO] Check logs for details"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
         
         always {

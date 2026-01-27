@@ -215,17 +215,13 @@ EOF
     
     post {
         success {
-            script {
-                echo "[SUCCESS] Destroy completed for ${env.PROJECT_DISPLAY_NAME}"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-            }
+            echo "[SUCCESS] Destroy completed for ${env.PROJECT_DISPLAY_NAME}"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
         
         failure {
-            script {
-                echo "[FAILURE] Destroy failed for ${env.PROJECT_DISPLAY_NAME}"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-            }
+            echo "[FAILURE] Destroy failed for ${env.PROJECT_DISPLAY_NAME}"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
     }
 }

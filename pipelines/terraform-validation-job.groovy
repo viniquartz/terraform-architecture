@@ -142,22 +142,10 @@ pipeline {
     
     post {
         success {
-            script {
-                echo "[SUCCESS] Validation passed for all checks"
-                
-                // Phase 2: GitLab MR comment
-                // updateGitlabCommitStatus name: 'terraform-validation', state: 'success'
-                // addGitLabMRComment comment: "[SUCCESS] Terraform validation passed"
-            }
+            echo "[SUCCESS] Validation passed for all checks"
         }
         failure {
-            script {
-                echo "[FAILURE] Validation failed. Check logs above."
-                
-                // Phase 2: GitLab MR comment
-                // updateGitlabCommitStatus name: 'terraform-validation', state: 'failed'
-                // addGitLabMRComment comment: "[ERROR] Terraform validation failed. Check build logs."
-            }
+            echo "[FAILURE] Validation failed. Check logs above."
         }
         always {
             sh '''

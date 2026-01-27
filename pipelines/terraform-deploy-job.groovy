@@ -295,35 +295,13 @@ EOF
     
     post {
         success {
-            script {
-                echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-                
-                // Phase 2: Teams notification
-                // sendTeamsNotification(
-                //     status: 'SUCCESS',
-                //     projectName: params.PROJECT_NAME,
-                //     environment: params.ENVIRONMENT,
-                //     action: params.ACTION,
-                //     buildUrl: env.BUILD_URL
-                // )
-            }
+            echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
         
         failure {
-            script {
-                echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
-                echo "[INFO] Build URL: ${env.BUILD_URL}"
-                
-                // Phase 2: Teams notification
-                // sendTeamsNotification(
-                //     status: 'FAILURE',
-                //     projectName: params.PROJECT_NAME,
-                //     environment: params.ENVIRONMENT,
-                //     action: params.ACTION,
-                //     buildUrl: env.BUILD_URL
-                // )
-            }
+            echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
+            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
     }
 }
