@@ -373,8 +373,6 @@ pipeline {
             
             // Publish JUnit test results
             junit testResults: '**/*-report.xml', allowEmptyResults: true
-            
-            cleanWs()
         }
     }
 }

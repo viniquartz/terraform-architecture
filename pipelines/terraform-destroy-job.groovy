@@ -95,19 +95,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Azure Login') {
-            steps {
-                sh """
-                    az login --service-principal \
-                    -u $ARM_CLIENT_ID \
-                    -p $ARM_CLIENT_SECRET \
-                    --tenant $ARM_TENANT_ID
-                    
-                    az account set --subscription $ARM_SUBSCRIPTION_ID
-                """
-            }
-        }
         
         stage('Terraform Init') {
             steps {
@@ -151,15 +138,6 @@ EOF
                     }
                     
                     sh "terraform show -json tfplan-destroy-${env.PROJECT_DISPLAY_NAME} > tfplan-destroy-${env.PROJECT_DISPLAY_NAME}.json"
-                    
-                    // Show what will be destroyed
-                    sh """
-                        echo "[WARNING] =========================================="
-                        echo "[WARNING] RESOURCES TO BE DESTROYED:"
-                        echo "[WARNING] =========================================="
-                        terraform show tfplan-destroy-${env.PROJECT_DISPLAY_NAME}
-                        echo "[WARNING] =========================================="
-                    """
                 }
             }
         }
@@ -223,12 +201,22 @@ EOF
                 """
             }
         }
+        
+        stage('Save Artifacts') {
+            steps {
+                script {
+                    echo "[ARTIFACTS] Saving pipeline artifacts..."
+                    archiveArtifacts artifacts: "**/tfplan-destroy-*.json", allowEmptyArchive: true
+                    echo "[OK] Artifacts saved (container will be cleaned automatically)"
+                }
+            }
+        }
     }
     
     post {
         success {
             script {
-                echo "[SUCCESS] Destroy completed successfully for ${env.PROJECT_DISPLAY_NAME}"
+                echo "[SUCCESS] Destroy completed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
         }
@@ -238,18 +226,3 @@ EOF
                 echo "[FAILURE] Destroy failed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
-        }
-        always {
-            echo "[POST] Saving Artifact and Cleaning Workspace..."
-            archiveArtifacts artifacts: "**/tfplan-destroy-*.json", allowEmptyArchive: true
-            cleanWs(
-                deleteDirs: true,
-                notFailBuild: true,
-                patterns: [
-                    [pattern: '**/.terraform/**', type: 'INCLUDE'],
-                    [pattern: '**/tfplan*', type: 'INCLUDE']
-                ]
-            )
-        }
-    }
-}

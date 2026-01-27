@@ -170,19 +170,6 @@ pipeline {
         //     }
         // }
 
-        stage('Azure Login') {
-            steps {
-                sh """
-                    az login --service-principal \
-                    -u $ARM_CLIENT_ID \
-                    -p $ARM_CLIENT_SECRET \
-                    --tenant $ARM_TENANT_ID
-                    
-                    az account set --subscription $ARM_SUBSCRIPTION_ID
-                """
-            }
-        }
-
         stage('Terraform Init') {
             steps {
                 sh """
@@ -286,24 +273,22 @@ EOF
             }
         }
 
-        stage('Cleanup Workspace') {
+        stage('Save Artifacts') {
             steps {
-                echo "[POST] Saving Artifact and Cleaning Workspace..."
-                archiveArtifacts artifacts: "**/tfplan-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
-                // junit testResults: "**/trivy-report-${env.PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
-                // publishHTML([
-                //     allowMissing: true,
-                //     alwaysLinkToLastBuild: true,
-                //     keepAll: true,
-                //     reportDir: '.',
-                //     reportFiles: "infracost-${env.PROJECT_DISPLAY_NAME}.html",
-                //     reportName: 'Infracost Report'
-                // ])
-                echo "[CLEANUP] Cleaning workspace safely"
-                cleanWs(
-                    deleteDirs: true,
-                    notFailBuild: true
-                )
+                script {
+                    echo "[ARTIFACTS] Saving pipeline artifacts..."
+                    archiveArtifacts artifacts: "**/tfplan-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
+                    // junit testResults: "**/trivy-report-${env.PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
+                    // publishHTML([
+                    //     allowMissing: true,
+                    //     alwaysLinkToLastBuild: true,
+                    //     keepAll: true,
+                    //     reportDir: '.',
+                    //     reportFiles: "infracost-${env.PROJECT_DISPLAY_NAME}.html",
+                    //     reportName: 'Infracost Report'
+                    // ])
+                    echo "[OK] Artifacts saved (container will be cleaned automatically)"
+                }
             }
         }
     }
@@ -311,8 +296,7 @@ EOF
     post {
         success {
             script {
-                def project = env.PROJECT_DISPLAY_NAME ?: "Project"
-                echo "[SUCCESS] ${params.ACTION} completed for ${project}"
+                echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification
@@ -328,8 +312,7 @@ EOF
         
         failure {
             script {
-                def project = env.PROJECT_DISPLAY_NAME ?: "Project"
-                echo "[FAILURE] ${params.ACTION} failed for ${project}"
+                echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification

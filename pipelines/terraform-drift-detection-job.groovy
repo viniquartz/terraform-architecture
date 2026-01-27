@@ -130,9 +130,6 @@ EOF
                                 echo "[ERROR] Error checking drift for ${projectEnv}: ${e.message}"
                                 driftDetails[projectEnv] = "ERROR: ${e.message}"
                             }
-                            
-                            // Clean workspace for next project
-                            cleanWs()
                         }
                     }
                     

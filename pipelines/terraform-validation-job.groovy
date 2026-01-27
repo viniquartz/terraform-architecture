@@ -180,8 +180,6 @@ pipeline {
                 reportFiles: 'infracost-validation.html',
                 reportName: 'Infracost Report'
             ])
-            
-            cleanWs()
         }
     }
 }
