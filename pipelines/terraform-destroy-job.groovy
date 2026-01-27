@@ -8,7 +8,6 @@ pipeline {
             image 'jenkins-terraform:v1.0.0'
             label 'terraform-agent'
             args '-u jenkins:jenkins --network host -v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/trivy_cache:/home/jenkins/.cache/trivy -e HOME=/home/jenkins -e AZURE_CONFIG_DIR=/home/jenkins/.azure'
-            reuseNode true
         }
     }
     
