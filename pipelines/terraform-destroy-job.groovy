@@ -226,3 +226,6 @@ EOF
                 echo "[FAILURE] Destroy failed for ${env.PROJECT_DISPLAY_NAME}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
+        }
+    }
+}
