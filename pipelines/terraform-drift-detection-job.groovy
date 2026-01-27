@@ -5,7 +5,7 @@
 pipeline {
     agent {
         docker {
-            image 'jenkins-terraform:latest'
+            image 'jenkins-terraform:v1.0.0'
             label 'terraform-agent'
             args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
         }
