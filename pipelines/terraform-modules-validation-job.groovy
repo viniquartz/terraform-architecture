@@ -43,13 +43,43 @@ pipeline {
             }
         }
         
+        stage('Discover Structure') {
+            steps {
+                script {
+                    echo "[INFO] Discovering repository structure..."
+                    sh '''
+                        echo "Repository root contents:"
+                        ls -la
+                        
+                        echo ""
+                        echo "Searching for Terraform files:"
+                        find . -name "*.tf" -type f | head -20
+                        
+                        echo ""
+                        echo "Searching for main.tf files:"
+                        find . -name "main.tf" -type f
+                    '''
+                }
+            }
+        }
+        
         stage('Validate All Modules') {
             steps {
                 script {
+                    // Find all modules - adjust path based on repository structure
+                    def modulesPath = fileExists('modules') ? 'modules' : '.'
+                    echo "[INFO] Searching for modules in: ${modulesPath}"
+                    
                     def modules = sh(
-                        script: 'find modules -name "main.tf" -exec dirname {} \\;',
+                        script: "find ${modulesPath} -name 'main.tf' -type f -exec dirname {} \\;",
                         returnStdout: true
                     ).trim().split('\n')
+                    
+                    if (!modules || modules[0] == '') {
+                        error "[ERROR] No Terraform modules found in repository"
+                    }
+                    
+                    echo "[INFO] Found ${modules.size()} module(s)"
                     
                     def validationResults = [:]
                     def warnings = []
@@ -156,8 +186,9 @@ pipeline {
                     echo "MODULE QUALITY REPORT"
                     echo "=========================================="
                     
+                    def modulesPath = fileExists('modules') ? 'modules' : '.'
                     def modules = sh(
-                        script: 'find modules -name "main.tf" -exec dirname {} \\;',
+                        script: "find ${modulesPath} -name 'main.tf' -type f -exec dirname {} \\;",
                         returnStdout: true
                     ).trim().split('\n')
                     
