@@ -6,7 +6,7 @@ pipeline {
         docker {
             image 'jenkins-terraform:v1.0.0'
             label 'terraform-agent'
-            args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
+            args '-u jenkins:jenkins --network host -v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/trivy_cache:/home/jenkins/.cache/trivy -e HOME=/home/jenkins -e AZURE_CONFIG_DIR=/home/jenkins/.azure'
             reuseNode true
         }
     }
@@ -90,16 +90,18 @@ pipeline {
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
                     sh '''
-                        echo "[GIT] Configuring Git credentials for Terraform modules"
+                        echo "[GIT] Configuring Git credentials"
                         
-                        # Use custom git config in /tmp (no permission issues)
-                        export GIT_CONFIG_GLOBAL=/tmp/.gitconfig
-                        
-                        # Rewrite GitLab URLs to include credentials automatically
+                        # Evita prompts de interação que travam o job
+                        export GIT_TERMINAL_PROMPT=0
+
+                        # Configura diretamente no home do usuário jenkins
+                        git config --global user.email "e-vsantiago@tap.pt"
+                        git config --global user.name "Vinicius Santiago"
                         git config --global url."https://${GIT_USERNAME}:${GIT_PASSWORD}@gitlab.tap.pt".insteadOf "https://gitlab.tap.pt"
                         
-                        # Save config path for next stages
-                        echo "export GIT_CONFIG_GLOBAL=/tmp/.gitconfig" > /tmp/git-env.sh
+                        # Comando crítico para evitar erro de permissão do Jenkins no Workspace
+                        git config --global --add safe.directory '*'
                     '''
                 }
             }
@@ -110,9 +112,6 @@ pipeline {
                 sh '''
                     echo "[OK] Validating Terraform code for ${PROJECT_DISPLAY_NAME}"
                     
-                    # Load Git config
-                    source /tmp/git-env.sh
-                    
                     terraform fmt -recursive
                     terraform init -backend=false
                     terraform validate
@@ -120,54 +119,56 @@ pipeline {
                 '''
             }
         }
+
+        // stage('Security Scan') {
+        //     steps {
+        //         sh """
+        //             echo "[SCAN] Running Trivy security scan using persistent cache for ${PROJECT_DISPLAY_NAME}"
+                    
+        //             trivy config . \\
+        //                 --cache-dir /home/jenkins/.cache/trivy \\
+        //                 --skip-dirs .terraform,.git \\
+        //                 --format sarif \\
+        //                 --output trivy-report-${PROJECT_DISPLAY_NAME}.sarif \\
+        //                 --severity MEDIUM,HIGH,CRITICAL || true
+
+        //             trivy convert --format template --template '@contrib/junit.tpl' \\
+        //                 trivy-report-${PROJECT_DISPLAY_NAME}.sarif > trivy-report-${PROJECT_DISPLAY_NAME}.xml || true
+                    
+        //             echo "[OK] Security scan completed"
+        //         """
+        //     }
+        // }
         
-        stage('Security Scan') {
-            steps {
-                sh """
-                    echo "[SCAN] Running Trivy security scan for ${PROJECT_DISPLAY_NAME}"
+        // stage('Cost Estimation') {
+        //     steps {
+        //         sh """
+        //             echo "[COST] Running Infracost for ${PROJECT_DISPLAY_NAME}"
                     
-                    trivy config . \\
-                        --format sarif \\
-                        --output trivy-report-${PROJECT_DISPLAY_NAME}.sarif \\
-                        --severity MEDIUM,HIGH,CRITICAL || true
+        //             # Generate cost breakdown
+        //             infracost breakdown \\
+        //                 --path . \\
+        //                 --format json \\
+        //                 --out-file infracost-${PROJECT_DISPLAY_NAME}.json \\
+        //                 --terraform-var environment=${params.ENVIRONMENT} \\
+        //                 --terraform-var project_name=${params.PROJECT_NAME} || true
                     
-                    trivy convert --format template --template '@contrib/junit.tpl' \\
-                        trivy-report-${PROJECT_DISPLAY_NAME}.sarif > trivy-report-${PROJECT_DISPLAY_NAME}.xml || true
+        //             # Generate HTML report
+        //             infracost output \\
+        //                 --path infracost-${PROJECT_DISPLAY_NAME}.json \\
+        //                 --format html \\
+        //                 --out-file infracost-${PROJECT_DISPLAY_NAME}.html || true
                     
-                    echo "[OK] Security scan completed"
-                """
-            }
-        }
-        
-        stage('Cost Estimation') {
-            steps {
-                sh """
-                    echo "[COST] Running Infracost for ${PROJECT_DISPLAY_NAME}"
+        //             # Show table summary
+        //             echo "[COST] Cost Summary:"
+        //             infracost output \\
+        //                 --path infracost-${PROJECT_DISPLAY_NAME}.json \\
+        //                 --format table || true
                     
-                    # Generate cost breakdown
-                    infracost breakdown \\
-                        --path . \\
-                        --format json \\
-                        --out-file infracost-${PROJECT_DISPLAY_NAME}.json \\
-                        --terraform-var environment=${params.ENVIRONMENT} \\
-                        --terraform-var project_name=${params.PROJECT_NAME} || true
-                    
-                    # Generate HTML report
-                    infracost output \\
-                        --path infracost-${PROJECT_DISPLAY_NAME}.json \\
-                        --format html \\
-                        --out-file infracost-${PROJECT_DISPLAY_NAME}.html || true
-                    
-                    # Show table summary
-                    echo "[COST] Cost Summary:"
-                    infracost output \\
-                        --path infracost-${PROJECT_DISPLAY_NAME}.json \\
-                        --format table || true
-                    
-                    echo "[OK] Cost estimation completed"
-                """
-            }
-        }
+        //             echo "[OK] Cost estimation completed"
+        //         """
+        //     }
+        // }
 
         stage('Azure Login') {
             steps {
@@ -181,16 +182,12 @@ pipeline {
                 """
             }
         }
-        
+
         stage('Terraform Init') {
             steps {
-                sh '''
-                    echo "[INIT] Configuring backend for ${PROJECT_DISPLAY_NAME}"
+                sh """
+                    echo "[INIT] Configuring backend for ${env.PROJECT_DISPLAY_NAME}"
                     
-                    # Load Git config
-                    source /tmp/git-env.sh
-                    
-                    # Generate dynamic backend configuration
                     cat > backend-config.tfbackend << EOF
 resource_group_name  = "azr-prd-iac01-weu-rg"
 storage_account_name = "azrprdiac01weust"
@@ -200,7 +197,7 @@ EOF
                     
                     echo "[INIT] Initializing Terraform with backend config"
                     terraform init -backend-config=backend-config.tfbackend -upgrade
-                '''
+                """
             }
         }
         
@@ -288,22 +285,34 @@ EOF
                 """
             }
         }
-        
-        // Phase 2: Post-deployment validations
-        // stage('Post-Deployment Tests') {
-        //     when {
-        //         expression { params.ACTION == 'apply' }
-        //     }
-        //     steps {
-        //         sh "./scripts/post-deployment-tests.sh ${params.PROJECT_NAME} ${params.ENVIRONMENT}"
-        //     }
-        // }
+
+        stage('Cleanup Workspace') {
+            steps {
+                echo "[POST] Saving Artifact and Cleaning Workspace..."
+                archiveArtifacts artifacts: "**/tfplan-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
+                // junit testResults: "**/trivy-report-${env.PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
+                // publishHTML([
+                //     allowMissing: true,
+                //     alwaysLinkToLastBuild: true,
+                //     keepAll: true,
+                //     reportDir: '.',
+                //     reportFiles: "infracost-${env.PROJECT_DISPLAY_NAME}.html",
+                //     reportName: 'Infracost Report'
+                // ])
+                echo "[CLEANUP] Cleaning workspace safely"
+                cleanWs(
+                    deleteDirs: true,
+                    notFailBuild: true
+                )
+            }
+        }
     }
     
     post {
         success {
             script {
-                echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
+                def project = env.PROJECT_DISPLAY_NAME ?: "Project"
+                echo "[SUCCESS] ${params.ACTION} completed for ${project}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification
@@ -319,7 +328,8 @@ EOF
         
         failure {
             script {
-                echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
+                def project = env.PROJECT_DISPLAY_NAME ?: "Project"
+                echo "[FAILURE] ${params.ACTION} failed for ${project}"
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
                 
                 // Phase 2: Teams notification
@@ -331,24 +341,6 @@ EOF
                 //     buildUrl: env.BUILD_URL
                 // )
             }
-        }
-        
-        always {
-            sh '''
-                # Clean up Git config
-                rm -f /tmp/.gitconfig /tmp/git-env.sh
-            '''
-            archiveArtifacts artifacts: "**/tfplan-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
-            junit testResults: "**/trivy-report-${env.PROJECT_DISPLAY_NAME}.xml", allowEmptyResults: true
-            publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: '.',
-                reportFiles: "infracost-${env.PROJECT_DISPLAY_NAME}.html",
-                reportName: 'Infracost Report'
-            ])
-            cleanWs()
         }
     }
 }

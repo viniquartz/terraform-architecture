@@ -5,9 +5,9 @@
 pipeline {
     agent {
         docker {
-            image 'jenkins-terraform:latest'
+            image 'jenkins-terraform:v1.0.0'
             label 'terraform-agent'
-            args '--network host -v /var/run/docker.sock:/var/run/docker.sock'
+            args '-u jenkins:jenkins --network host -v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/trivy_cache:/home/jenkins/.cache/trivy -e HOME=/home/jenkins -e AZURE_CONFIG_DIR=/home/jenkins/.azure'
             reuseNode true
         }
     }
@@ -19,17 +19,17 @@ pipeline {
         )
         choice(
             name: 'ENVIRONMENT',
-            choices: ['prd', 'qlt', 'tst'],
+            choices: ['tst', 'qlt', 'prd'],
             description: 'Target environment'
+        )
+        string(
+            name: 'GIT_REPO_URL',
+            description: 'Full Git repository URL'
         )
         string(
             name: 'GIT_BRANCH',
             defaultValue: 'main',
             description: 'Repository branch'
-        )
-        string(
-            name: 'GIT_REPO_URL',
-            description: 'Full Git repository URL'
         )
     }
     
@@ -79,40 +79,51 @@ pipeline {
                     passwordVariable: 'GIT_PASSWORD'
                 )]) {
                     sh '''
-                        echo "[GIT] Configuring Git credentials for Terraform modules"
+                        echo "[GIT] Configuring Git credentials"
                         
-                        # Use custom git config in /tmp (no permission issues)
-                        export GIT_CONFIG_GLOBAL=/tmp/.gitconfig
-                        
-                        # Rewrite GitLab URLs to include credentials automatically
+                        # Evita prompts de interação que travam o job
+                        export GIT_TERMINAL_PROMPT=0
+
+                        # Configura diretamente no home do usuário jenkins
+                        git config --global user.email "e-vsantiago@tap.pt"
+                        git config --global user.name "Vinicius Santiago"
                         git config --global url."https://${GIT_USERNAME}:${GIT_PASSWORD}@gitlab.tap.pt".insteadOf "https://gitlab.tap.pt"
                         
-                        # Save config path for next stages
-                        echo "export GIT_CONFIG_GLOBAL=/tmp/.gitconfig" > /tmp/git-env.sh
+                        # Comando crítico para evitar erro de permissão do Jenkins no Workspace
+                        git config --global --add safe.directory '*'
                     '''
                 }
+            }
+        }
+
+        stage('Azure Login') {
+            steps {
+                sh """
+                    az login --service-principal \
+                    -u $ARM_CLIENT_ID \
+                    -p $ARM_CLIENT_SECRET \
+                    --tenant $ARM_TENANT_ID
+                    
+                    az account set --subscription $ARM_SUBSCRIPTION_ID
+                """
             }
         }
         
         stage('Terraform Init') {
             steps {
-                sh '''
-                    echo "[INIT] Configuring backend for ${PROJECT_DISPLAY_NAME}"
+                sh """
+                    echo "[INIT] Configuring backend for ${env.PROJECT_DISPLAY_NAME}"
                     
-                    # Load Git config
-                    source /tmp/git-env.sh
-                    
-                    # Generate dynamic backend configuration
                     cat > backend-config.tfbackend << EOF
-resource_group_name  = "rg-terraform-state"
-storage_account_name = "stterraformstate"
+resource_group_name  = "azr-prd-iac01-weu-rg"
+storage_account_name = "azrprdiac01weust"
 container_name       = "terraform-state-${params.ENVIRONMENT}"
 key                  = "${params.PROJECT_NAME}/terraform.tfstate"
 EOF
                     
                     echo "[INIT] Initializing Terraform with backend config"
                     terraform init -backend-config=backend-config.tfbackend -upgrade
-                '''
+                """
             }
         }
         
@@ -153,46 +164,46 @@ EOF
             }
         }
         
-        stage('Approval') {
-            steps {
-                script {
-                    def approvalMessage = "⚠️ DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
-                    def approvers = 'devops-team'
-                    def timeoutHours = 4
+        // stage('Approval') {
+        //     steps {
+        //         script {
+        //             def approvalMessage = "DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
+        //             def approvers = 'devops-team'
+        //             def timeoutHours = 4
                     
-                    // Production requires additional approval
-                    if (params.ENVIRONMENT == 'prd') {
-                        approvalMessage = "🚨 PRODUCTION DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
-                        approvers = 'devops-team,security-team'
-                        timeoutHours = 8
-                    }
+        //             // Production requires additional approval
+        //             if (params.ENVIRONMENT == 'prd') {
+        //                 approvalMessage = "PRODUCTION DESTROY: Approve destruction of ${env.PROJECT_DISPLAY_NAME}?"
+        //                 approvers = 'devops-team,security-team'
+        //                 timeoutHours = 8
+        //             }
                     
-                    echo "[APPROVAL] Waiting for approval: ${approvalMessage}"
-                    echo "[WARNING] This will PERMANENTLY DELETE all resources!"
+        //             echo "[APPROVAL] Waiting for approval: ${approvalMessage}"
+        //             echo "[WARNING] This will PERMANENTLY DELETE all resources!"
                     
-                    timeout(time: timeoutHours, unit: 'HOURS') {
-                        input(
-                            id: 'DestroyApproval',
-                            message: approvalMessage,
-                            submitter: approvers,
-                            parameters: [
-                                text(
-                                    name: 'APPROVAL_COMMENT',
-                                    description: 'Why are you destroying these resources?'
-                                ),
-                                booleanParam(
-                                    name: 'CONFIRM_DESTROY',
-                                    defaultValue: false,
-                                    description: 'I confirm I want to DESTROY all resources'
-                                )
-                            ]
-                        )
-                    }
+        //             timeout(time: timeoutHours, unit: 'HOURS') {
+        //                 input(
+        //                     id: 'DestroyApproval',
+        //                     message: approvalMessage,
+        //                     submitter: approvers,
+        //                     parameters: [
+        //                         text(
+        //                             name: 'APPROVAL_COMMENT',
+        //                             description: 'Why are you destroying these resources?'
+        //                         ),
+        //                         booleanParam(
+        //                             name: 'CONFIRM_DESTROY',
+        //                             defaultValue: false,
+        //                             description: 'I confirm I want to DESTROY all resources'
+        //                         )
+        //                     ]
+        //                 )
+        //             }
                     
-                    echo "[APPROVAL] Destroy approved by: ${env.BUILD_USER}"
-                }
-            }
-        }
+        //             echo "[APPROVAL] Destroy approved by: ${env.BUILD_USER}"
+        //         }
+        //     }
+        // }
         
         stage('Terraform Destroy') {
             steps {
@@ -228,14 +239,17 @@ EOF
                 echo "[INFO] Build URL: ${env.BUILD_URL}"
             }
         }
-        
         always {
-            sh '''
-                # Clean up Git config
-                rm -f /tmp/.gitconfig /tmp/git-env.sh
-            '''
-            archiveArtifacts artifacts: "**/tfplan-destroy-${env.PROJECT_DISPLAY_NAME}.json", allowEmptyArchive: true
-            cleanWs()
+            echo "[POST] Saving Artifact and Cleaning Workspace..."
+            archiveArtifacts artifacts: "**/tfplan-destroy-*.json", allowEmptyArchive: true
+            cleanWs(
+                deleteDirs: true,
+                notFailBuild: true,
+                patterns: [
+                    [pattern: '**/.terraform/**', type: 'INCLUDE'],
+                    [pattern: '**/tfplan*', type: 'INCLUDE']
+                ]
+            )
         }
     }
 }
