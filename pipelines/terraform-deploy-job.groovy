@@ -287,20 +287,14 @@ EOF
                     //     reportName: 'Infracost Report'
                     // ])
                     echo "[OK] Artifacts saved (container will be cleaned automatically)"
+                    
+                    // Final status message (before container destruction)
+                    echo "=========================================="
+                    echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
+                    echo "[INFO] Build URL: ${env.BUILD_URL}"
+                    echo "=========================================="
                 }
             }
-        }
-    }
-    
-    post {
-        success {
-            echo "[SUCCESS] ${params.ACTION} completed for ${env.PROJECT_DISPLAY_NAME}"
-            echo "[INFO] Build URL: ${env.BUILD_URL}"
-        }
-        
-        failure {
-            echo "[FAILURE] ${params.ACTION} failed for ${env.PROJECT_DISPLAY_NAME}"
-            echo "[INFO] Build URL: ${env.BUILD_URL}"
         }
     }
 }

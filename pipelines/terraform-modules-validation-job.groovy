@@ -73,10 +73,11 @@ pipeline {
                                     echo "[WARNING] Missing README.md in ${module}"
                                 }
                                 
-                                if (!fileExists('examples')) {
-                                    warnings.add("No examples directory in ${module}")
-                                    echo "[WARNING] No examples directory in ${module}"
-                                }
+                                // Note: examples/ directory is optional
+                                // if (!fileExists('examples')) {
+                                //     warnings.add("No examples directory in ${module}")
+                                //     echo "[WARNING] No examples directory in ${module}"
+                                // }
                                 
                                 // Check for required files
                                 def requiredFiles = ['main.tf', 'variables.tf', 'outputs.tf']
@@ -144,117 +145,119 @@ pipeline {
             }
         }
         
-        stage('Cost Analysis') {
-            steps {
-                script {
-                    def modules = sh(
-                        script: 'find modules -name "main.tf" -exec dirname {} \\;',
-                        returnStdout: true
-                    ).trim().split('\n')
-                    
-                    echo "[COST] Running Infracost on example configurations"
-                    
-                    modules.each { module ->
-                        if (fileExists("${module}/examples")) {
-                            echo "[COST] Analyzing examples in ${module}"
-                            
-                            dir("${module}/examples") {
-                                def examples = sh(
-                                    script: 'find . -maxdepth 1 -type d -not -name "." | sed "s|./||"',
-                                    returnStdout: true
-                                ).trim()
-                                
-                                if (examples) {
-                                    examples.split('\n').each { example ->
-                                        if (example && example.trim()) {
-                                            dir(example) {
-                                                def moduleName = module.replaceAll('/', '-')
-                                                sh """
-                                                    echo "[COST] Analyzing ${module}/examples/${example}"
-                                                    
-                                                    terraform init -backend=false || true
-                                                    
-                                                    infracost breakdown \\
-                                                        --path . \\
-                                                        --format json \\
-                                                        --out-file infracost-${moduleName}-${example}.json || true
-                                                    
-                                                    infracost output \\
-                                                        --path infracost-${moduleName}-${example}.json \\
-                                                        --format table || true
-                                                """
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            echo "[SKIP] No examples found for ${module}"
-                        }
-                    }
-                    
-                    echo "[OK] Cost analysis completed"
-                }
-            }
-        }
+        // Cost Analysis - Disabled: no examples/ directories in modules
+        // stage('Cost Analysis') {
+        //     steps {
+        //         script {
+        //             def modules = sh(
+        //                 script: 'find modules -name "main.tf" -exec dirname {} \\;',
+        //                 returnStdout: true
+        //             ).trim().split('\n')
+        //             
+        //             echo "[COST] Running Infracost on example configurations"
+        //             
+        //             modules.each { module ->
+        //                 if (fileExists("${module}/examples")) {
+        //                     echo "[COST] Analyzing examples in ${module}"
+        //                     
+        //                     dir("${module}/examples") {
+        //                         def examples = sh(
+        //                             script: 'find . -maxdepth 1 -type d -not -name "." | sed "s|./||"',
+        //                             returnStdout: true
+        //                         ).trim()
+        //                         
+        //                         if (examples) {
+        //                             examples.split('\n').each { example ->
+        //                                 if (example && example.trim()) {
+        //                                     dir(example) {
+        //                                         def moduleName = module.replaceAll('/', '-')
+        //                                         sh """
+        //                                             echo "[COST] Analyzing ${module}/examples/${example}"
+        //                                             
+        //                                             terraform init -backend=false || true
+        //                                             
+        //                                             infracost breakdown \\
+        //                                                 --path . \\
+        //                                                 --format json \\
+        //                                                 --out-file infracost-${moduleName}-${example}.json || true
+        //                                             
+        //                                             infracost output \\
+        //                                                 --path infracost-${moduleName}-${example}.json \\
+        //                                                 --format table || true
+        //                                         """
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 } else {
+        //                     echo "[SKIP] No examples found for ${module}"
+        //                 }
+        //             }
+        //             
+        //             echo "[OK] Cost analysis completed"
+        //         }
+        //     }
+        // }
         
-        stage('Validate Examples') {
-            steps {
-                script {
-                    def modules = sh(
-                        script: 'find modules -name "main.tf" -exec dirname {} \\;',
-                        returnStdout: true
-                    ).trim().split('\n')
-                    
-                    def exampleResults = [:]
-                    
-                    modules.each { module ->
-                        if (fileExists("${module}/examples")) {
-                            echo "[TEST] Validating examples for ${module}"
-                            
-                            dir("${module}/examples") {
-                                def examples = sh(
-                                    script: 'find . -maxdepth 1 -type d -not -name "." | sed "s|./||"',
-                                    returnStdout: true
-                                ).trim()
-                                
-                                if (examples) {
-                                    examples.split('\n').each { example ->
-                                        if (example && example.trim()) {
-                                            try {
-                                                dir(example) {
-                                                    sh 'terraform init -backend=false'
-                                                    sh 'terraform validate'
-                                                    exampleResults["${module}/${example}"] = 'PASSED'
-                                                    echo "[OK] Example validated: ${module}/${example}"
-                                                }
-                                            } catch (Exception e) {
-                                                exampleResults["${module}/${example}"] = 'FAILED'
-                                                echo "[ERROR] Example failed: ${module}/${example} - ${e.message}"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Example validation summary
-                    if (exampleResults.size() > 0) {
-                        def passedExamples = exampleResults.count { it.value == 'PASSED' }
-                        def failedExamples = exampleResults.count { it.value == 'FAILED' }
-                        
-                        echo "=========================================="
-                        echo "EXAMPLES VALIDATION SUMMARY"
-                        echo "=========================================="
-                        echo "Total examples: ${exampleResults.size()}"
-                        echo "Passed: ${passedExamples}"
-                        echo "Failed: ${failedExamples}"
-                        echo "=========================================="
-                    }
-                }
-            }
-        }
+        // Validate Examples - Disabled: no examples/ directories in modules
+        // stage('Validate Examples') {
+        //     steps {
+        //         script {
+        //             def modules = sh(
+        //                 script: 'find modules -name "main.tf" -exec dirname {} \\;',
+        //                 returnStdout: true
+        //             ).trim().split('\n')
+        //             
+        //             def exampleResults = [:]
+        //             
+        //             modules.each { module ->
+        //                 if (fileExists("${module}/examples")) {
+        //                     echo "[TEST] Validating examples for ${module}"
+        //                     
+        //                     dir("${module}/examples") {
+        //                         def examples = sh(
+        //                             script: 'find . -maxdepth 1 -type d -not -name "." | sed "s|./||"',
+        //                             returnStdout: true
+        //                         ).trim()
+        //                         
+        //                         if (examples) {
+        //                             examples.split('\n').each { example ->
+        //                                 if (example && example.trim()) {
+        //                                     try {
+        //                                         dir(example) {
+        //                                             sh 'terraform init -backend=false'
+        //                                             sh 'terraform validate'
+        //                                             exampleResults["${module}/${example}"] = 'PASSED'
+        //                                             echo "[OK] Example validated: ${module}/${example}"
+        //                                         }
+        //                                     } catch (Exception e) {
+        //                                         exampleResults["${module}/${example}"] = 'FAILED'
+        //                                         echo "[ERROR] Example failed: ${module}/${example} - ${e.message}"
+        //                                     }
+        //                                 }
+        //                             }
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //             
+        //             // Example validation summary
+        //             if (exampleResults.size() > 0) {
+        //                 def passedExamples = exampleResults.count { it.value == 'PASSED' }
+        //                 def failedExamples = exampleResults.count { it.value == 'FAILED' }
+        //                 
+        //                 echo "=========================================="
+        //                 echo "EXAMPLES VALIDATION SUMMARY"
+        //                 echo "=========================================="
+        //                 echo "Total examples: ${exampleResults.size()}"
+        //                 echo "Passed: ${passedExamples}"
+        //                 echo "Failed: ${failedExamples}"
+        //                 echo "=========================================="
+        //             }
+        //         }
+        //     }
+        // }
         
         // Phase 2: Add comprehensive testing
         // stage('Run Module Tests') {
@@ -318,12 +321,10 @@ pipeline {
                         echo "Module: ${module}"
                         
                         def hasReadme = fileExists("${module}/README.md")
-                        def hasExamples = fileExists("${module}/examples")
                         def hasVariables = fileExists("${module}/variables.tf")
                         def hasOutputs = fileExists("${module}/outputs.tf")
                         
                         echo "  README.md:    ${hasReadme ? '✓' : '✗'}"
-                        echo "  Examples:     ${hasExamples ? '✓' : '✗'}"
                         echo "  variables.tf: ${hasVariables ? '✓' : '✗'}"
                         echo "  outputs.tf:   ${hasOutputs ? '✓' : '✗'}"
                     }
@@ -331,27 +332,27 @@ pipeline {
                 }
             }
         }
-    }
-    
-    post {
-        success {
-            echo "[SUCCESS] Module validation passed"
-            echo "[INFO] All modules validated successfully"
-            echo "[INFO] Build URL: ${env.BUILD_URL}"
-        }
         
-        failure {
-            echo "[FAILURE] Module validation failed"
-            echo "[INFO] Check logs for details"
-            echo "[INFO] Build URL: ${env.BUILD_URL}"
-        }
-        
-        always {
-            // Archive reports and artifacts
-            archiveArtifacts artifacts: '**/*-report.*,**/infracost-*.json', allowEmptyArchive: true
-            
-            // Publish JUnit test results
-            junit testResults: '**/*-report.xml', allowEmptyResults: true
+        stage('Final Report') {
+            steps {
+                script {
+                    echo "=========================================="
+                    echo "FINAL VALIDATION REPORT"
+                    echo "=========================================="
+                    
+                    // Archive reports and artifacts
+                    archiveArtifacts artifacts: '**/*-report.*,**/infracost-*.json', allowEmptyArchive: true
+                    
+                    // Publish JUnit test results
+                    junit testResults: '**/*-report.xml', allowEmptyResults: true
+                    
+                    echo ""
+                    echo "[SUCCESS] Module validation completed successfully"
+                    echo "[INFO] All modules passed validation"
+                    echo "[INFO] Build URL: ${env.BUILD_URL}"
+                    echo "=========================================="
+                }
+            }
         }
     }
 }
